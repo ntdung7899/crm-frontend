@@ -24,7 +24,6 @@ import {
   type CampaignRecipient,
 } from "./CampaignRecipientsImport";
 
-
 const CONNECTIONS_STORAGE_KEY = "crm.zaloOa.connections.v1";
 
 const loadStoredConnections = (): OaConnection[] => {
@@ -95,6 +94,62 @@ export function MarketingSection() {
 
   useEffect(() => {
     setConnections(loadStoredConnections());
+  }, []);
+
+  // Load danh sách campaigns từ backend
+  useEffect(() => {
+    let cancelled = false;
+    apiClient
+      .get<{
+        responseData: {
+          rows: {
+            id: string;
+            name: string;
+            channel: string;
+            segment: string;
+            scheduled_at: string;
+            message: string;
+            status: string;
+            sent: number;
+            failed: number;
+            template_id?: string;
+            template_code?: string;
+            template_name?: string;
+            recipients_count?: number;
+            mode?: "development" | "production";
+            oa_official_id?: string;
+            phone?: string;
+            template_data?: Record<string, string>;
+          }[];
+        };
+      }>("/api/v1.0/marketing")
+      .then(({ responseData }) => {
+        if (cancelled) return;
+        const loaded: Campaign[] = (responseData?.rows ?? []).map((row) => ({
+          id: row.id,
+          name: row.name,
+          channel: row.channel,
+          segment: row.segment,
+          scheduledAt: row.scheduled_at,
+          message: row.message,
+          status: row.status as Campaign["status"],
+          sent: row.sent,
+          failed: row.failed,
+          templateId: row.template_id,
+          templateCode: row.template_code,
+          templateName: row.template_name,
+          recipientsCount: row.recipients_count,
+          mode: row.mode,
+          oaOfficialId: row.oa_official_id,
+        }));
+        setCampaigns(loaded);
+      })
+      .catch((err) => {
+        console.error("[Marketing] Load campaigns thất bại:", err);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Fetch templates cho TẤT CẢ OA đã kết nối
@@ -383,7 +438,7 @@ export function MarketingSection() {
       // Lưu pending log
       const recordId = `tm-${campaign.id}-${i}-${Date.now()}`;
       appendTemplateMessage({
-        id: recordId,
+        // id: recordId,
         oaId: campaign.channel,
         oaOfficialId: campaign.oaOfficialId,
         templateId: campaign.templateId,
@@ -432,6 +487,34 @@ export function MarketingSection() {
         failed += 1;
       }
 
+      // Lưu từng bản ghi per-recipient lên backend
+      try {
+        await apiClient.post("/api/v1.0/marketing", {
+          id: recordId,
+          name: campaign.name,
+          channel: campaign.channel,
+          segment: campaign.segment,
+          scheduledAt: campaign.scheduledAt,
+          message: campaign.message,
+          status: result.status === "sent_to_zalo" ? "completed" : "failed",
+          sent: result.status === "sent_to_zalo" ? 1 : 0,
+          failed: result.status === "sent_to_zalo" ? 0 : 1,
+          templateId: campaign.templateId,
+          templateCode: campaign.templateCode,
+          templateName: campaign.templateName,
+          recipientsCount: 1,
+          mode,
+          oaOfficialId: campaign.oaOfficialId,
+          phone: r.phone,
+          template_data: r.templateData,
+        });
+      } catch (err) {
+        console.error(
+          `[Marketing] Lưu bản ghi recipient ${r.phone} thất bại:`,
+          err,
+        );
+      }
+
       setCampaigns((prev) =>
         prev.map((c) => (c.id === campaignId ? { ...c, sent, failed } : c)),
       );
@@ -450,29 +533,6 @@ export function MarketingSection() {
     );
     setRunningCampaignId(null);
     setRunProgress(null);
-
-    try {
-      await apiClient.post("/api/v1.0/marketing", {
-        id: campaign.id,
-        name: campaign.name,
-        channel: campaign.channel,
-        segment: campaign.segment,
-        scheduledAt: campaign.scheduledAt,
-        message: campaign.message,
-        status: "completed",
-        sent,
-        failed,
-        templateId: campaign.templateId,
-        templateCode: campaign.templateCode,
-        templateName: campaign.templateName,
-        recipientsCount: total,
-        mode,
-        oaOfficialId: campaign.oaOfficialId,
-      });
-      console.log(`[Marketing] Campaign "${campaign.name}" đã lưu lên server.`);
-    } catch (err) {
-      console.error("[Marketing] Lưu campaign lên server thất bại:", err);
-    }
 
     if (lastQuotaRemaining !== undefined) {
       console.log(
@@ -671,12 +731,13 @@ export function MarketingSection() {
                             canPick && handleTemplateChange(t.templateCode)
                           }
                           disabled={!canPick}
-                          className={`text-left rounded-lg border p-3 transition-colors ${isSelected
-                            ? "border-primary-500 bg-primary-50/40"
-                            : canPick
-                              ? "border-gray-200 hover:border-primary-300 bg-white"
-                              : "border-gray-100 bg-gray-50 cursor-not-allowed opacity-60"
-                            }`}
+                          className={`text-left rounded-lg border p-3 transition-colors ${
+                            isSelected
+                              ? "border-primary-500 bg-primary-50/40"
+                              : canPick
+                                ? "border-gray-200 hover:border-primary-300 bg-white"
+                                : "border-gray-100 bg-gray-50 cursor-not-allowed opacity-60"
+                          }`}
                         >
                           <div className="flex items-center gap-2 mb-1 flex-wrap">
                             <span className="px-1.5 py-0.5 rounded bg-primary-50 text-primary-700 text-[10px] font-semibold">
@@ -908,10 +969,11 @@ export function MarketingSection() {
               </label>
               <div className="flex gap-2">
                 <label
-                  className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-xs ${form.mode === "development"
-                    ? "border-amber-400 bg-amber-50 text-amber-800"
-                    : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
+                  className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-xs ${
+                    form.mode === "development"
+                      ? "border-amber-400 bg-amber-50 text-amber-800"
+                      : "border-gray-200 bg-white hover:border-gray-300"
+                  }`}
                 >
                   <input
                     type="radio"
@@ -927,10 +989,11 @@ export function MarketingSection() {
                   </p>
                 </label>
                 <label
-                  className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-xs ${form.mode === "production"
-                    ? "border-emerald-400 bg-emerald-50 text-emerald-800"
-                    : "border-gray-200 bg-white hover:border-gray-300"
-                    }`}
+                  className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-xs ${
+                    form.mode === "production"
+                      ? "border-emerald-400 bg-emerald-50 text-emerald-800"
+                      : "border-gray-200 bg-white hover:border-gray-300"
+                  }`}
                 >
                   <input
                     type="radio"
@@ -1029,7 +1092,7 @@ export function MarketingSection() {
                   </td>
                   <td className="px-3 py-2">
                     {campaign.status === "running" &&
-                      runningCampaignId === campaign.id ? (
+                    runningCampaignId === campaign.id ? (
                       <div className="flex items-center gap-1.5">
                         <span className="px-2 py-1 rounded text-[10px] font-medium bg-blue-100 text-blue-700">
                           Đang gửi
@@ -1052,14 +1115,15 @@ export function MarketingSection() {
                       </div>
                     ) : (
                       <span
-                        className={`px-2 py-1 rounded text-[10px] font-medium ${campaign.status === "draft"
-                          ? "bg-gray-100 text-gray-700"
-                          : campaign.status === "scheduled"
-                            ? "bg-orange-100 text-orange-700"
-                            : campaign.status === "running"
-                              ? "bg-blue-100 text-blue-700"
-                              : "bg-green-100 text-green-700"
-                          }`}
+                        className={`px-2 py-1 rounded text-[10px] font-medium ${
+                          campaign.status === "draft"
+                            ? "bg-gray-100 text-gray-700"
+                            : campaign.status === "scheduled"
+                              ? "bg-orange-100 text-orange-700"
+                              : campaign.status === "running"
+                                ? "bg-blue-100 text-blue-700"
+                                : "bg-green-100 text-green-700"
+                        }`}
                       >
                         {campaign.status === "draft"
                           ? "Nháp"
@@ -1113,7 +1177,6 @@ export function MarketingSection() {
           </table>
         </div>
       </div>
-
     </div>
   );
 }

@@ -3,10 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { FiDownload, FiRefreshCw, FiTrash2 } from "react-icons/fi";
 import { Card, CardContent } from "@/components/ui/Card";
-import {
-    clearTemplateMessages,
-    loadTemplateMessages,
-} from "@/lib/zaloTemplateMessageStore";
+import { clearTemplateMessages } from "@/lib/zaloTemplateMessageStore";
+import { apiClient } from "@/lib/api-client";
 import type { OaConnection, ZbsTemplateMessageRecord } from "@/types/zalo-oa";
 
 const CONNECTIONS_STORAGE_KEY = "crm.zaloOa.connections.v1";
@@ -38,6 +36,7 @@ const PAGE_SIZE = 20;
 export function TemplateHistorySection() {
     const [records, setRecords] = useState<ZbsTemplateMessageRecord[]>([]);
     const [connections, setConnections] = useState<OaConnection[]>([]);
+    const [loading, setLoading] = useState(false);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState<"all" | ZbsTemplateMessageRecord["status"]>("all");
     const [oaFilter, setOaFilter] = useState<string>("all");
@@ -46,13 +45,63 @@ export function TemplateHistorySection() {
     const [toDate, setToDate] = useState("");
     const [page, setPage] = useState(1);
 
-    const refresh = () => {
-        setRecords(loadTemplateMessages().slice().reverse()); // mới nhất lên đầu
+    const refresh = async () => {
         setConnections(loadStoredConnections());
+        setLoading(true);
+        try {
+            const res = await apiClient.get<{
+                responseData: {
+                    rows: {
+                        id?: string;
+                        channel?: string;
+                        oa_official_id?: string;
+                        template_id?: string;
+                        template_code?: string;
+                        template_name?: string;
+                        phone?: string;
+                        mode?: "development" | "production";
+                        template_data?: Record<string, string>;
+                        status?: string;
+                        sent?: number;
+                        failed?: number;
+                        created_at?: string;
+                        updated_at?: string;
+                    }[];
+                };
+            }>("/api/v1.0/marketing");
+            const rows = res.responseData?.rows ?? [];
+            const mapped: ZbsTemplateMessageRecord[] = rows.map((row) => ({
+                id: row.id,
+                oaId: row.channel ?? "",
+                oaOfficialId: row.oa_official_id,
+                templateId: row.template_id ?? "",
+                templateCode: row.template_code,
+                templateName: row.template_name,
+                phone: row.phone ?? "",
+                normalizedPhone: row.phone ?? "",
+                trackingId: row.id ?? "",
+                mode: (row.mode ?? "production") as ZbsTemplateMessageRecord["mode"],
+                templateData: row.template_data ?? {},
+                status: (
+                    row.status === "completed"
+                        ? row.failed === 1 ? "failed" : "sent_to_zalo"
+                        : row.status === "failed" ? "failed" : "pending"
+                ) as ZbsTemplateMessageRecord["status"],
+                createdAt: row.created_at ?? new Date().toISOString(),
+                updatedAt: row.updated_at ?? new Date().toISOString(),
+            }));
+            // Mới nhất lên đầu
+            setRecords(mapped.reverse());
+        } catch (err) {
+            console.error("[TemplateHistory] Load thất bại:", err);
+        } finally {
+            setLoading(false);
+        }
     };
 
     useEffect(() => {
         refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const oaNameById = useMemo(
@@ -175,9 +224,10 @@ export function TemplateHistorySection() {
                     <button
                         type="button"
                         onClick={refresh}
-                        className="flex items-center gap-1 px-3 py-1.5 border border-gray-200 hover:bg-gray-50 rounded-lg text-xs"
+                        disabled={loading}
+                        className="flex items-center gap-1 px-3 py-1.5 border border-gray-200 hover:bg-gray-50 rounded-lg text-xs disabled:opacity-50"
                     >
-                        <FiRefreshCw className="h-3 w-3" /> Làm mới
+                        <FiRefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} /> Làm mới
                     </button>
                     <button
                         type="button"

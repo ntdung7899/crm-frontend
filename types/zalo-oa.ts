@@ -1,4 +1,8 @@
-export type OaConnectionStatus = "connected" | "expired" | "revoked" | "disconnected";
+export type OaConnectionStatus =
+  | "connected"
+  | "expired"
+  | "revoked"
+  | "disconnected";
 
 export interface OaConnection {
   id: string;
@@ -96,7 +100,7 @@ export interface ZbsSendByPhoneResult {
 
 /** Bản ghi giả lập bảng zalo_template_messages */
 export interface ZbsTemplateMessageRecord {
-  id: string;
+  id?: string;
   oaId: string;
   oaOfficialId?: string;
   templateId: string;
