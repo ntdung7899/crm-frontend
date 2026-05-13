@@ -1,0 +1,114 @@
+Prompt cho Frontend AI
+Tích hợp Socket.IO realtime vào CRM web để nhận tin nhắn Zalo mới từ backend.
+
+Thông tin kết nối
+Thông số	Giá trị
+Backend URL	http://<server>:3000
+Socket path	/socket.io
+Transport	websocket, fallback polling
+Auth	JWT token gửi qua auth.token
+Cài đặt
+
+npm install socket.io-client
+# hoặc
+pnpm add socket.io-client
+
+Khởi tạo Socket (singleton)
+Tạo một file socketService.ts (hoặc tương đương):
+
+
+import { io, Socket } from 'socket.io-client';
+
+let socket: Socket | null = null;
+
+export function connectSocket(jwtToken: string): Socket {
+  if (socket?.connected) return socket;
+
+  socket = io(process.env.NEXT_PUBLIC_API_URL, { // hoặc biến env tương ứng
+    auth: { token: jwtToken },
+    path: '/socket.io',
+    transports: ['websocket', 'polling'],
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 2000,
+  });
+
+  socket.on('connect', () => {
+    console.log('[Socket] Connected:', socket!.id);
+    // KHÔNG cần subscribe OA — backend tự động join tất cả OA active khi connect
+  });
+
+  socket.on('connect_error', (err) => {
+    console.error('[Socket] Auth/connect error:', err.message);
+    // Nếu lỗi "Unauthorized" hoặc "Invalid token" → redirect login
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.warn('[Socket] Disconnected:', reason);
+  });
+
+  return socket;
+}
+
+export function disconnectSocket(): void {
+  socket?.disconnect();
+  socket = null;
+}
+
+export function getSocket(): Socket | null {
+  return socket;
+}
+
+
+Lắng nghe tin nhắn Zalo mới
+Quan trọng: Gọi connectSocket() sau khi user đăng nhập thành công và có JWT.
+interface ZaloNewMessage {
+  oa_id: string;           // ID của OA nhận/gửi tin
+  sender_id: string;       // ID người dùng Zalo
+  event_name: string;      // 'user_send_text' | 'oa_send_text' | ...
+  direction: 'inbound' | 'outbound'; // inbound = user gửi, outbound = OA gửi
+  message_text: string | null;
+  message_id: string;
+  attachments: any[] | null;
+  zalo_timestamp: number | null; // Unix ms
+  sent_by: string | null;  // user_id nếu OA gửi từ CRM
+}
+Vòng đời Socket
+User đăng nhập → lấy JWT → connectSocket(jwt)
+                              ↓
+                  Backend tự join tất cả OA active
+                              ↓
+                  Nhận zalo:new_message khi có webhook
+                              ↓
+User đăng xuất  → disconnectSocket()
+Ví dụ tích hợp với React
+
+// hooks/useZaloSocket.ts
+import { useEffect } from 'react';
+import { connectSocket, disconnectSocket } from '@/services/socketService';
+import { useAuthStore } from '@/stores/authStore'; // tuỳ state manager
+
+export function useZaloSocket(onNewMessage: (msg: ZaloNewMessage) => void) {
+  const token = useAuthStore(s => s.token);
+
+  useEffect(() => {
+    if (!token) return;
+
+    const socket = connectSocket(token);
+    socket.on('zalo:new_message', onNewMessage);
+
+    return () => {
+      socket.off('zalo:new_message', onNewMessage);
+    };
+  }, [token]);
+}
+
+// Trong component
+useZaloSocket((msg) => {
+  // cập nhật danh sách hội thoại, hiển thị notification, ...
+});
+Lưu ý
+Không tạo nhiều instance socket — dùng singleton socketService
+Token hết hạn: connect_error sẽ bắn ra → handle refresh token hoặc redirect login
+OA mới được admin thêm vào DB: backend tự push tất cả socket vào room ngay, FE không cần làm gì thêm
+Môi trường production: đổi URL sang domain thực, đảm bảo CORS và reverse proxy (nginx) forward WebSocket (Upgrade: websocket)

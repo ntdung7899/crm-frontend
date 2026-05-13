@@ -4,23 +4,33 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const TABS: { id: string; label: string; href: string; matches: string[] }[] = [
-  { id: "home", label: "Trang chủ", href: "/tai-chinh", matches: ["/tai-chinh"] },
+  {
+    id: "home",
+    label: "Trang chủ",
+    href: "/tai-chinh",
+    matches: ["/tai-chinh"],
+  },
   {
     id: "quy",
     label: "Quỹ",
     href: "/tai-chinh/quy",
     matches: ["/tai-chinh/quy", "/tai-chinh/phieu-thu", "/tai-chinh/phieu-chi"],
   },
-  { id: "ngan-sach", label: "Ngân sách", href: "/tai-chinh/ngan-sach", matches: ["/tai-chinh/ngan-sach"] },
+  {
+    id: "ngan-sach",
+    label: "Ngân sách",
+    href: "/tai-chinh/ngan-sach",
+    matches: ["/tai-chinh/ngan-sach"],
+  },
   {
     id: "yccp",
     label: "Yêu cầu chi phí",
     href: "/tai-chinh/yeu-cau-chi-phi",
     matches: ["/tai-chinh/yeu-cau-chi-phi"],
   },
-  { id: "cong-no", label: "Công nợ", href: "/tai-chinh/cong-no", matches: ["/tai-chinh/cong-no"] },
-  { id: "so-cai", label: "Sổ cái", href: "/tai-chinh/so-cai", matches: ["/tai-chinh/so-cai"] },
-  { id: "bao-cao", label: "Báo cáo tài chính", href: "/tai-chinh/bao-cao", matches: ["/tai-chinh/bao-cao"] },
+  // { id: "cong-no", label: "Công nợ", href: "/tai-chinh/cong-no", matches: ["/tai-chinh/cong-no"] },
+  // { id: "so-cai", label: "Sổ cái", href: "/tai-chinh/so-cai", matches: ["/tai-chinh/so-cai"] },
+  // { id: "bao-cao", label: "Báo cáo tài chính", href: "/tai-chinh/bao-cao", matches: ["/tai-chinh/bao-cao"] },
 ];
 
 export function FinanceTabs() {
@@ -32,7 +42,10 @@ export function FinanceTabs() {
   let bestLen = 0;
   for (const tab of TABS) {
     for (const m of tab.matches) {
-      if ((pathname === m || pathname.startsWith(m + "/")) && m.length > bestLen) {
+      if (
+        (pathname === m || pathname.startsWith(m + "/")) &&
+        m.length > bestLen
+      ) {
         activeId = tab.id;
         bestLen = m.length;
       }

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>Socket.IO Test — Zalo Webhook</title>
+  <script src="https://cdn.socket.io/4.8.0/socket.io.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #d4d4d4; margin: 0; }
+    h2 { margin-top: 0; }
+    label { font-size: 12px; color: #aaa; }
+    input { padding: 6px 10px; margin: 4px 4px 4px 0; font-size: 14px;
+            background: #2d2d2d; color: #fff; border: 1px solid #555; border-radius: 4px; }
+    button { padding: 6px 12px; margin: 4px 4px 4px 0; font-size: 13px;
+             background: #0078d4; color: #fff; border: none; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #006ab8; }
+    button.danger { background: #c0392b; }
+    button.danger:hover { background: #a93226; }
+    button.secondary { background: #444; }
+    button.secondary:hover { background: #555; }
+    .row { margin-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+    .section { border: 1px solid #333; border-radius: 6px; padding: 12px; margin-top: 12px; }
+    .section-title { font-size: 11px; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-left: 8px; }
+    .badge.connected    { background: #1b5e20; color: #81c784; }
+    .badge.disconnected { background: #4a1515; color: #e57373; }
+    #log { margin-top: 12px; background: #111; padding: 12px; border-radius: 6px;
+           height: 420px; overflow-y: auto; font-size: 13px; line-height: 1.6; }
+    #log pre { margin: 0; white-space: pre-wrap; word-break: break-all; }
+    .info  { color: #4fc3f7; }
+    .ok    { color: #81c784; }
+    .warn  { color: #ffb74d; }
+    .error { color: #e57373; }
+    .msg   { color: #ce93d8; }
+    .dim   { color: #666; }
+  </style>
+</head>
+<body>
+  <h2>Socket.IO Test — Zalo Webhook
+    <span id="status-badge" class="badge disconnected">Disconnected</span>
+  </h2>
+
+  <!-- Connection -->
+  <div class="section">
+    <div class="section-title">Connection</div>
+    <div class="row">
+      <div>
+        <label>Backend URL</label><br/>
+        <input id="url" value="https://gateway.dev.meu-solutions.com/crm-backend" style="width:320px"/>
+      </div>
+      <div style="flex:1; min-width:280px">
+        <label>JWT Token (không cần chữ Bearer)</label><br/>
+        <input id="token" placeholder="eyJhbGci..." style="width:100%"/>
+      </div>
+    </div>
+    <div class="row">
+      <button onclick="doConnect()">Connect</button>
+      <button class="danger" onclick="doDisconnect()">Disconnect</button>
+    </div>
+    <div style="margin-top:6px; font-size:12px; color:#888">
+      ℹ️ Sau khi connect, server tự động subscribe tất cả OA active — không cần subscribe thủ công.
+    </div>
+  </div>
+
+  <!-- Manual subscribe (optional) -->
+  <div class="section">
+    <div class="section-title">Manual Subscribe / Unsubscribe (tuỳ chọn)</div>
+    <div class="row">
+      <div>
+        <label>OA ID</label><br/>
+        <input id="oaId" placeholder="579745863508352884" style="width:220px"/>
+      </div>
+      <div>
+        <label>Nhiều OA IDs (cách nhau dấu phẩy)</label><br/>
+        <input id="oaIds" placeholder="id1,id2,id3" style="width:280px"/>
+      </div>
+    </div>
+    <div class="row">
+      <button onclick="subscribeSingle()">subscribe:oa</button>
+      <button onclick="subscribeMany()">subscribe:oas (mảng)</button>
+      <button class="secondary" onclick="unsubscribeSingle()">unsubscribe:oa</button>
+    </div>
+  </div>
+
+  <!-- Log -->
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px">
+    <span style="font-size:12px; color:#888">Event log</span>
+    <button class="secondary" style="font-size:12px; padding:3px 8px" onclick="clearLog()">Clear</button>
+  </div>
+  <div id="log"></div>
+
+  <script>
+    let socket = null;
+
+    function log(msg, cls = 'info') {
+      const div = document.getElementById('log');
+      const time = new Date().toLocaleTimeString('vi-VN', { hour12: false });
+      const escaped = String(msg).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      div.innerHTML += `<div class="${cls}">[${time}] ${escaped}</div>`;
+      div.scrollTop = div.scrollHeight;
+    }
+
+    function logJson(label, obj, cls = 'msg') {
+      const div = document.getElementById('log');
+      const time = new Date().toLocaleTimeString('vi-VN', { hour12: false });
+      div.innerHTML += `<div class="${cls}">[${time}] ${label}<pre>${JSON.stringify(obj, null, 2)}</pre></div>`;
+      div.scrollTop = div.scrollHeight;
+    }
+
+    function setStatus(connected) {
+      const badge = document.getElementById('status-badge');
+      badge.textContent = connected ? 'Connected' : 'Disconnected';
+      badge.className = 'badge ' + (connected ? 'connected' : 'disconnected');
+    }
+
+    function clearLog() {
+      document.getElementById('log').innerHTML = '';
+    }
+
+    function doConnect() {
+      if (socket) socket.disconnect();
+
+      const rawUrl = document.getElementById('url').value.trim();
+      const token  = document.getElementById('token').value.trim();
+
+      if (!token) { log('Nhập JWT token!', 'error'); return; }
+
+      // Tách origin và socket path từ URL
+      // VD: https://gateway.dev.meu-solutions.com/crm-backend
+      //   → origin     = https://gateway.dev.meu-solutions.com
+      //   → socketPath = /crm-backend/socket.io
+      // VD: http://localhost:3000
+      //   → origin     = http://localhost:3000
+      //   → socketPath = /socket.io
+      let socketOrigin, socketPath;
+      try {
+        const u = new URL(rawUrl);
+        socketOrigin = u.origin;
+        const prefix = u.pathname.replace(/\/$/, '');
+        socketPath = prefix ? prefix + '/socket.io' : '/socket.io';
+      } catch {
+        socketOrigin = rawUrl;
+        socketPath = '/socket.io';
+      }
+
+      log(`Connecting to ${socketOrigin} (path: ${socketPath}) ...`);
+
+      socket = io(socketOrigin, {
+        auth: { token },
+        transports: ['polling', 'websocket'],
+        path: socketPath,
+        reconnection: false,
+      });
+
+      socket.on('connect', () => {
+        setStatus(true);
+        log(`✅ Connected — id: ${socket.id}  (đã auto-subscribe tất cả OA active)`, 'ok');
+      });
+
+      socket.on('connect_error', (err) => {
+        setStatus(false);
+        log(`❌ Connect error: ${err.message}`, 'error');
+      });
+
+      socket.on('disconnect', (reason) => {
+        setStatus(false);
+        log(`⚠️ Disconnected: ${reason}`, 'warn');
+      });
+
+      socket.on('zalo:new_message', (msg) => {
+        logJson('📩 zalo:new_message', msg, 'msg');
+      });
+    }
+
+    function doDisconnect() {
+      if (socket) { socket.disconnect(); socket = null; }
+      setStatus(false);
+      log('Disconnected manually.', 'warn');
+    }
+
+    function requireConnected() {
+      if (!socket?.connected) { log('Chưa connect!', 'error'); return false; }
+      return true;
+    }
+
+    function subscribeSingle() {
+      if (!requireConnected()) return;
+      const oaId = document.getElementById('oaId').value.trim();
+      if (!oaId) { log('Nhập OA ID!', 'error'); return; }
+      socket.emit('subscribe:oa', oaId);
+      log(`📡 subscribe:oa → ${oaId}`, 'ok');
+    }
+
+    function subscribeMany() {
+      if (!requireConnected()) return;
+      const raw = document.getElementById('oaIds').value.trim();
+      if (!raw) { log('Nhập danh sách OA IDs!', 'error'); return; }
+      const ids = raw.split(',').map(s => s.trim()).filter(Boolean);
+      socket.emit('subscribe:oas', ids);
+      log(`📡 subscribe:oas → [${ids.join(', ')}]`, 'ok');
+    }
+
+    function unsubscribeSingle() {
+      if (!requireConnected()) return;
+      const oaId = document.getElementById('oaId').value.trim();
+      if (!oaId) { log('Nhập OA ID!', 'error'); return; }
+      socket.emit('unsubscribe:oa', oaId);
+      log(`🔕 unsubscribe:oa → ${oaId}`, 'warn');
+    }
+  </script>
+</body>
+</html>

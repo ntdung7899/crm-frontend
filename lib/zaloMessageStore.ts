@@ -51,6 +51,12 @@ export const appendMessage = (
   message: ZaloChatMessage,
 ): ZaloChatMessage[] => {
   const current = loadMessages(conversationId);
+  // Dedup theo zaloMessageId hoặc id để tránh duplicate khi StrictMode / socket reconnect
+  const key = message.zaloMessageId || message.id;
+  const isDuplicate = current.some(
+    (m) => (m.zaloMessageId && m.zaloMessageId === message.zaloMessageId) || m.id === key,
+  );
+  if (isDuplicate) return current;
   const next = [...current, message];
   saveMessages(conversationId, next);
   return next;
