@@ -71,3 +71,26 @@ export function disconnectSocket(): void {
 export function getSocket(): Socket | null {
   return socket;
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Internal Chat helpers — event: "chat:new_message"
+// ─────────────────────────────────────────────────────────────────────
+
+export interface ChatSocketMessage {
+  id: string;
+  sender_id: string;
+  receiver_id: string;
+  message: string | null;
+  message_type: string;
+  file_url: string | null;
+  status: string;
+  created_at: string;
+}
+
+export function onChatMessage(cb: (msg: ChatSocketMessage) => void): void {
+  socket?.on("chat:new_message", cb);
+}
+
+export function offChatMessage(cb: (msg: ChatSocketMessage) => void): void {
+  socket?.off("chat:new_message", cb);
+}

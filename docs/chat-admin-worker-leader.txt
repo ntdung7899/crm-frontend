@@ -1,0 +1,89 @@
+Implement a real-time internal CRM chat feature. Below are the complete backend specs.
+
+## Auth
+POST /api/v1.0/auth/login
+Body: { identifier: string, password: string }
+Response: { responseData: { accessToken: string, refreshToken: string, expiresIn: string } }
+
+All API calls require header: Authorization: Bearer {accessToken}
+
+## API Endpoints
+
+### GET /api/v1.0/chat_messages
+Get conversation list for the logged-in user.
+Response: { responseData: Array<{
+  other_user_id: string,       // UUID of the other user
+  last_message: string | null,
+  last_message_type: string,   // "text" | "image" | "file"
+  last_message_at: string,     // ISO datetime
+  unread_count: number
+}> }
+Sorted by last_message_at DESC.
+
+### POST /api/v1.0/chat_messages
+Send a new message.
+Body: {
+  senderId: string,     // current user UUID
+  receiverId: string,   // target user UUID
+  message: string,
+  messageType: string   // "text" (default)
+}
+Response: { responseData: { id, sender_id, receiver_id, message, message_type, file_url, is_read, status, created_at } }
+This also triggers a Socket.IO emit to the receiver.
+
+### GET /api/v1.0/chat_messages/{peerId}
+Get full conversation between current user and peerId (UUID).
+Response: { responseData: Array<{
+  id: string,
+  sender_id: string,
+  receiver_id: string,
+  message: string | null,
+  message_type: string,
+  file_url: string | null,
+  is_read: boolean,
+  status: string,
+  created_at: string
+}> }
+Sorted by created_at ASC.
+
+### PUT /api/v1.0/chat_messages/{messageId}
+Update a message (e.g. mark as read).
+Body: { isRead?: boolean, readAt?: string, status?: string }
+
+## Socket.IO (Real-time)
+Server: same base URL as API
+Path: /socket.io
+Auth: pass JWT token via handshake auth → io({ auth: { token: accessToken } })
+
+### Auto-behavior on connect:
+- Server auto-joins the socket to room user:{userId} — no manual subscribe needed
+- Server also auto-joins all active Zalo OA rooms
+
+### Event to listen (receive):
+socket.on('chat:new_message', (msg) => {
+  // msg shape:
+  // {
+  //   id: string,
+  //   sender_id: string,
+  //   receiver_id: string,
+  //   message: string | null,
+  //   message_type: string,
+  //   file_url: string | null,
+  //   status: string,
+  //   created_at: string
+  // }
+  // Fired when someone sends a message to the logged-in user
+})
+
+## Business Logic
+- Decode userId from JWT payload: JSON.parse(atob(token.split('.')[1])).id
+- A conversation is identified by the other_user_id
+- Messages are bidirectional (both sender and receiver appear in GET /{peerId})
+- unread_count: number of unread messages received by current user in that conversation
+- When opening a conversation, reset unread_count to 0 locally (no dedicated mark-read API yet)
+- Optimistic UI: append sent message immediately before API response
+
+## Notes
+- All responses wrap data in "responseData" field (not "data")
+- Status field in response: "success" or "fail"
+- created_at is ISO 8601 string

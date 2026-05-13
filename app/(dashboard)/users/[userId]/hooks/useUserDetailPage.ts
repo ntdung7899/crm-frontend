@@ -14,7 +14,7 @@ import {
     mapApiRowToProfile,
 } from "../utils/userDetailMappers";
 
-export type UserTab = "detail" | "activity" | "work";
+export type UserTab = "detail" | "activity" | "work" | "chat";
 
 export function useUserDetailPage() {
     const params = useParams<{ userId: string }>();
@@ -28,7 +28,7 @@ export function useUserDetailPage() {
     const requestedMode = searchParams.get("mode");
 
     const [activeTab, setActiveTab] = useState<UserTab>(
-        requestedTab === "activity" || requestedTab === "work" || requestedTab === "detail"
+        requestedTab === "activity" || requestedTab === "work" || requestedTab === "detail" || requestedTab === "chat"
             ? requestedTab
             : "detail",
     );
@@ -42,7 +42,7 @@ export function useUserDetailPage() {
     const [assignerNameById, setAssignerNameById] = useState<Record<string, string>>({});
 
     useEffect(() => {
-        if (requestedTab === "activity" || requestedTab === "detail" || requestedTab === "work") {
+        if (requestedTab === "activity" || requestedTab === "detail" || requestedTab === "work" || requestedTab === "chat") {
             setActiveTab(requestedTab);
         }
     }, [requestedTab]);
@@ -232,6 +232,7 @@ export function useUserDetailPage() {
             { id: "detail", label: "Thông tin chi tiết" },
             { id: "activity", label: "Lịch sử hoạt động" },
             { id: "work", label: "Lịch sử chăm sóc" },
+            { id: "chat", label: "Chat" },
         ],
         [],
     );

@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Tabs } from "@/components/ui/Tabs";
 import { UserEditorForm } from "../components/forms/UserEditorForm";
 import { UserActivityTab } from "./components/UserActivityTab";
+import { UserChatTab } from "./components/UserChatTab";
 import { UserDetailSection } from "./components/UserDetailSection";
 import { UserWorkTab } from "./components/UserWorkTab";
 import { UserTab, useUserDetailPage } from "./hooks/useUserDetailPage";
@@ -89,6 +90,10 @@ export default function UserDetailPage() {
                                 userId={user.id}
                                 userFullName={user.full_name}
                             />
+                        )}
+
+                        {activeTab === "chat" && (
+                            <UserChatTab userId={user.id} userName={user.full_name} />
                         )}
                     </div>
                 </CardContent>
