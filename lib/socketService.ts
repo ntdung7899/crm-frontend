@@ -38,11 +38,11 @@ export function connectSocket(jwtToken: string): Socket {
   const socketOrigin = parsedUrl.origin; // "https://gateway.dev.meu-solutions.com"
   const socketPath =
     (parsedUrl.pathname.replace(/\/$/, "") || "") + "/socket.io"; // "/crm-backend/socket.io"
-
+  console.log("[Socket] Connecting to:", socketOrigin + socketPath);
   socket = io(socketOrigin, {
     auth: { token: jwtToken },
     path: socketPath,
-    transports: ["websocket", "polling"],
+    transports: ["polling", "websocket"],
     reconnection: true,
     reconnectionAttempts: 5,
     reconnectionDelay: 2000,

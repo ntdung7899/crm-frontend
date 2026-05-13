@@ -147,7 +147,7 @@ export function useZaloOaPage() {
     const jwt = getAccessToken();
     // console.log("jwt", jwt);
     if (!jwt) return;
-
+    console.log("jwt", jwt);
     const socket = connectSocket(jwt);
 
     const handleNewMessage = (msg: ZaloNewMessage) => {
@@ -178,15 +178,16 @@ export function useZaloOaPage() {
         zaloMessageId: msg.message_id,
       };
 
+      // appendStoredMessage đã dedup theo zaloMessageId / id
+      appendStoredMessage(conversationId, newMsg);
+
       setMessagesByConversation((prev) => {
         const current = prev[conversationId] || [];
         // Tránh duplicate nếu đã có message_id này
         if (current.some((m) => m.zaloMessageId === msg.message_id)) {
           return prev;
         }
-        const next = [...current, newMsg];
-        appendStoredMessage(conversationId, newMsg);
-        return { ...prev, [conversationId]: next };
+        return { ...prev, [conversationId]: [...current, newMsg] };
       });
 
       // Cập nhật preview conversation list
