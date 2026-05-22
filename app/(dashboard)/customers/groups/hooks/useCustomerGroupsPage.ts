@@ -12,6 +12,8 @@ export interface GroupItem {
     id: string;
     name: string;
     customerCount: number;
+    isActive: boolean;
+    createdAt: string | null;
 }
 
 export interface UserOption {
@@ -60,6 +62,8 @@ export function useCustomerGroupsPage() {
                     id: tag.id,
                     name: tag.name,
                     customerCount: countByTagId[tag.id] || 0,
+                    isActive: tag.is_active !== false,
+                    createdAt: tag.created_at,
                 }))
                 .sort((a, b) => a.name.localeCompare(b.name, "vi"));
 
