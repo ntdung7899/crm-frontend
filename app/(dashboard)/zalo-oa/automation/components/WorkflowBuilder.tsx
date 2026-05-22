@@ -19,7 +19,7 @@ const NODE_TYPES: { type: NodeType; label: string; icon: React.ReactNode; desc: 
 ];
 
 export function WorkflowBuilder({ hook }: Props) {
-  const { onBack, saveFlow, builderName, setBuilderName, addNode, editingFlow } = hook;
+  const { onBack, saveFlow, builderName, setBuilderName, addNode, editingFlow, error } = hook;
 
   return (
     <div className="flex flex-col" style={{ height: "calc(100vh - 160px)" }}>
@@ -58,6 +58,12 @@ export function WorkflowBuilder({ hook }: Props) {
           Lưu
         </button>
       </div>
+
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Body: toolbar + canvas + config panel */}
       <div className="flex flex-1 border border-gray-200 rounded-xl overflow-hidden bg-white min-h-0">

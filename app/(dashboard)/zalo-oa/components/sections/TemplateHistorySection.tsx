@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { FiDownload, FiRefreshCw, FiTrash2 } from "react-icons/fi";
-import { Card, CardContent } from "@/components/ui/Card";
+import { CheckCircle2, ChevronDown, Copy, Eye, Info, MoreVertical, RefreshCw, Search, Send, XCircle } from "lucide-react";
+import { FiDownload, FiTrash2 } from "react-icons/fi";
+import { TablePagination } from "@/components/ui/TablePagination";
 import { clearTemplateMessages } from "@/lib/zaloTemplateMessageStore";
 import { apiClient } from "@/lib/api-client";
 import type { OaConnection, ZbsTemplateMessageRecord } from "@/types/zalo-oa";
@@ -23,15 +24,15 @@ const loadStoredConnections = (): OaConnection[] => {
 
 const STATUS_BADGE: Record<
     ZbsTemplateMessageRecord["status"],
-    { label: string; className: string }
+    { label: string; className: string; dotColor: string }
 > = {
-    pending: { label: "Đang gửi", className: "bg-gray-100 text-gray-600" },
-    sent_to_zalo: { label: "Đã gửi", className: "bg-blue-100 text-blue-700" },
-    delivered: { label: "Đã nhận", className: "bg-emerald-100 text-emerald-700" },
-    failed: { label: "Thất bại", className: "bg-red-100 text-red-700" },
+    pending: { label: "Đang xử lý", className: "bg-amber-50 text-amber-600", dotColor: "bg-amber-500" },
+    sent_to_zalo: { label: "Đã gửi", className: "bg-blue-50 text-blue-600", dotColor: "bg-blue-500" },
+    delivered: { label: "Đã nhận", className: "bg-emerald-50 text-emerald-600", dotColor: "bg-emerald-500" },
+    failed: { label: "Lỗi", className: "bg-red-50 text-red-600", dotColor: "bg-red-500" },
 };
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 10;
 
 export function TemplateHistorySection() {
     const [records, setRecords] = useState<ZbsTemplateMessageRecord[]>([]);
@@ -44,6 +45,8 @@ export function TemplateHistorySection() {
     const [fromDate, setFromDate] = useState("");
     const [toDate, setToDate] = useState("");
     const [page, setPage] = useState(1);
+    const [pageSize, setPageSize] = useState(PAGE_SIZE);
+    const [showMoreMenu, setShowMoreMenu] = useState(false);
 
     const refresh = async () => {
         setConnections(loadStoredConnections());
@@ -90,7 +93,6 @@ export function TemplateHistorySection() {
                 createdAt: row.created_at ?? new Date().toISOString(),
                 updatedAt: row.updated_at ?? new Date().toISOString(),
             }));
-            // Mới nhất lên đầu
             setRecords(mapped.reverse());
         } catch (err) {
             console.error("[TemplateHistory] Load thất bại:", err);
@@ -101,7 +103,7 @@ export function TemplateHistorySection() {
 
     useEffect(() => {
         refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const oaNameById = useMemo(
@@ -136,48 +138,37 @@ export function TemplateHistorySection() {
         });
     }, [records, search, statusFilter, oaFilter, modeFilter, fromDate, toDate]);
 
-    const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-
     useEffect(() => {
-        if (page > totalPages) setPage(1);
-    }, [page, totalPages]);
+        setPage(1);
+    }, [search, statusFilter, oaFilter, modeFilter, fromDate, toDate]);
 
     const paginated = useMemo(
-        () => filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-        [filtered, page],
+        () => filtered.slice((page - 1) * pageSize, page * pageSize),
+        [filtered, page, pageSize],
     );
 
     const stats = useMemo(() => {
         let sent = 0;
         let failed = 0;
         let delivered = 0;
-        for (const r of filtered) {
+        for (const r of records) {
             if (r.status === "sent_to_zalo") sent += 1;
             else if (r.status === "delivered") {
                 delivered += 1;
                 sent += 1;
             } else if (r.status === "failed") failed += 1;
         }
-        return { total: filtered.length, sent, failed, delivered };
-    }, [filtered]);
+        return { total: records.length, sent, failed, delivered };
+    }, [records]);
 
     const handleExportCsv = () => {
         if (filtered.length === 0) return;
         const headers = [
-            "createdAt",
-            "oa",
-            "templateName",
-            "templateId",
-            "phone",
-            "trackingId",
-            "msgId",
-            "status",
-            "mode",
-            "errorCode",
-            "errorMessage",
-            "templateData",
+            "createdAt", "oa", "templateName", "templateId", "phone",
+            "trackingId", "msgId", "status", "mode", "errorCode",
+            "errorMessage", "templateData",
         ];
-        const rows = filtered.map((r) =>
+        const csvRows = filtered.map((r) =>
             [
                 r.createdAt,
                 oaNameById[r.oaId] || r.oaId,
@@ -195,7 +186,7 @@ export function TemplateHistorySection() {
                 .map((v) => `"${String(v)}"`)
                 .join(","),
         );
-        const csv = [headers.join(","), ...rows].join("\n");
+        const csv = [headers.join(","), ...csvRows].join("\n");
         const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
@@ -211,225 +202,305 @@ export function TemplateHistorySection() {
         refresh();
     };
 
+    const handleClearFilters = () => {
+        setSearch("");
+        setStatusFilter("all");
+        setModeFilter("all");
+        setOaFilter("all");
+        setFromDate("");
+        setToDate("");
+    };
+
+    const shortTrackingId = (id: string) => {
+        if (id.length <= 16) return id;
+        return `${id.slice(0, 8)}...${id.slice(-5)}`;
+    };
+
     return (
         <div className="space-y-6 p-6">
-            <div className="flex items-center justify-between flex-wrap gap-2">
+            {/* Header */}
+            <div className="flex flex-wrap items-start justify-between gap-4">
                 <div>
-                    <h2 className="text-sm font-semibold text-gray-800">Lịch sử gửi template</h2>
-                    <p className="text-xs text-gray-500 mt-1">
-                        Toàn bộ tin template đã gửi qua Zalo (lưu cục bộ).
+                    <h1 className="text-3xl font-bold text-gray-900">Lịch sử gửi template</h1>
+                    <p className="mt-2 text-sm text-gray-500">
+                        Theo dõi toàn bộ tin nhắn template đã gửi qua Zalo OA, trạng thái gửi, lỗi và tracking.
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     <button
-                        type="button"
                         onClick={refresh}
                         disabled={loading}
-                        className="flex items-center gap-1 px-3 py-1.5 border border-gray-200 hover:bg-gray-50 rounded-lg text-xs disabled:opacity-50"
+                        className="inline-flex h-12 items-center gap-2 rounded-lg border border-gray-200 bg-white px-5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50 disabled:opacity-50"
                     >
-                        <FiRefreshCw className={`h-3 w-3 ${loading ? "animate-spin" : ""}`} /> Làm mới
+                        <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                        Làm mới
                     </button>
                     <button
-                        type="button"
                         onClick={handleExportCsv}
                         disabled={filtered.length === 0}
-                        className="flex items-center gap-1 px-3 py-1.5 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 text-white rounded-lg text-xs"
+                        className="inline-flex h-12 items-center gap-2 rounded-lg bg-primary-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:opacity-50"
                     >
-                        <FiDownload className="h-3 w-3" /> Xuất CSV
+                        <FiDownload className="h-4 w-4" />
+                        Xuất CSV
+                    </button>
+                    <div className="relative">
+                        <button
+                            onClick={() => setShowMoreMenu(!showMoreMenu)}
+                            className="inline-flex h-12 w-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50"
+                        >
+                            <MoreVertical className="h-5 w-5" />
+                        </button>
+                        {showMoreMenu && (
+                            <div className="absolute right-0 top-14 z-20 w-56 rounded-xl border border-gray-100 bg-white py-2 shadow-xl">
+                                <button
+                                    onClick={() => { setShowMoreMenu(false); refresh(); }}
+                                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+                                >
+                                    <RefreshCw className="h-4 w-4" />
+                                    Đồng bộ template
+                                </button>
+                                <button
+                                    onClick={() => { setShowMoreMenu(false); handleClear(); }}
+                                    disabled={records.length === 0}
+                                    className="flex w-full items-center gap-3 px-4 py-3 text-left text-sm font-medium text-red-500 transition hover:bg-red-50 disabled:opacity-50"
+                                >
+                                    <FiTrash2 className="h-4 w-4" />
+                                    Xóa lịch sử
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                <StatCard
+                    icon={<Send className="h-6 w-6" />}
+                    label="Tổng tin"
+                    value={stats.total}
+                    note="Tổng số template đã gửi"
+                    className="bg-indigo-50 text-indigo-600"
+                />
+                <StatCard
+                    icon={<Send className="h-6 w-6" />}
+                    label="Đã gửi"
+                    value={stats.sent}
+                    note="Tin đã gửi sang Zalo"
+                    className="bg-blue-50 text-blue-600"
+                />
+                <StatCard
+                    icon={<CheckCircle2 className="h-6 w-6" />}
+                    label="Đã nhận"
+                    value={stats.delivered}
+                    note="Tin đã được khách nhận"
+                    className="bg-emerald-50 text-emerald-600"
+                />
+                <StatCard
+                    icon={<XCircle className="h-6 w-6" />}
+                    label="Lỗi"
+                    value={stats.failed}
+                    note="Tin gửi thất bại"
+                    className="bg-red-50 text-red-600"
+                />
+            </div>
+
+            {/* Filters */}
+            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_200px_200px_200px] xl:items-end">
+                    <div>
+                        <span className="mb-2 block text-sm font-semibold text-gray-700">Tìm kiếm</span>
+                        <div className="relative">
+                            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                            <input
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                placeholder="Tìm số điện thoại, tracking, mã tin, template..."
+                                className="h-12 w-full rounded-lg border border-gray-200 bg-white pl-12 pr-4 text-sm outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
+                            />
+                        </div>
+                    </div>
+                    <FilterSelect
+                        label="Trạng thái"
+                        value={statusFilter}
+                        onChange={(v) => setStatusFilter(v as typeof statusFilter)}
+                        options={[
+                            { value: "all", label: "Tất cả trạng thái" },
+                            { value: "pending", label: "Đang xử lý" },
+                            { value: "sent_to_zalo", label: "Đã gửi" },
+                            { value: "delivered", label: "Đã nhận" },
+                            { value: "failed", label: "Lỗi" },
+                        ]}
+                    />
+                    <FilterSelect
+                        label="Chế độ"
+                        value={modeFilter}
+                        onChange={(v) => setModeFilter(v as typeof modeFilter)}
+                        options={[
+                            { value: "all", label: "Tất cả chế độ" },
+                            { value: "development", label: "Development" },
+                            { value: "production", label: "Production" },
+                        ]}
+                    />
+                    <FilterSelect
+                        label="OA"
+                        value={oaFilter}
+                        onChange={(v) => setOaFilter(v)}
+                        options={[
+                            { value: "all", label: "Tất cả OA" },
+                            ...connections.map((c) => ({ value: c.id, label: c.oaName })),
+                        ]}
+                    />
+                </div>
+
+                <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1fr_auto_auto] xl:items-end">
+                    <div>
+                        <span className="mb-2 block text-sm font-semibold text-gray-700">Khoảng ngày gửi</span>
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="date"
+                                value={fromDate}
+                                onChange={(e) => setFromDate(e.target.value)}
+                                className="h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
+                            />
+                            <span className="text-gray-400">~</span>
+                            <input
+                                type="date"
+                                value={toDate}
+                                onChange={(e) => setToDate(e.target.value)}
+                                className="h-12 rounded-lg border border-gray-200 bg-white px-4 text-sm outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
+                            />
+                        </div>
+                    </div>
+                    <button
+                        onClick={refresh}
+                        disabled={loading}
+                        className="inline-flex h-12 items-center justify-center gap-2 rounded-lg bg-primary-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:opacity-50"
+                    >
+                        <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                        Lọc dữ liệu
                     </button>
                     <button
-                        type="button"
-                        onClick={handleClear}
-                        disabled={records.length === 0}
-                        className="flex items-center gap-1 px-3 py-1.5 border border-red-200 text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg text-xs"
+                        onClick={handleClearFilters}
+                        className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
                     >
-                        <FiTrash2 className="h-3 w-3" /> Xoá lịch sử
+                        Xóa bộ lọc
                     </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Card>
-                    <CardContent className="py-3">
-                        <p className="text-xs text-gray-500">Tổng tin</p>
-                        <p className="mt-1 text-lg font-bold text-gray-900">
-                            {stats.total.toLocaleString("vi-VN")}
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="py-3">
-                        <p className="text-xs text-gray-500">Đã gửi (sent_to_zalo)</p>
-                        <p className="mt-1 text-lg font-bold text-blue-700">{stats.sent}</p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="py-3">
-                        <p className="text-xs text-gray-500">Đã nhận (delivered)</p>
-                        <p className="mt-1 text-lg font-bold text-emerald-700">
-                            {stats.delivered}
-                        </p>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="py-3">
-                        <p className="text-xs text-gray-500">Lỗi</p>
-                        <p className="mt-1 text-lg font-bold text-red-600">{stats.failed}</p>
-                    </CardContent>
-                </Card>
-            </div>
+            {/* Table */}
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+                <div className="border-b border-gray-100 px-6 py-4">
+                    <h2 className="text-base font-bold text-gray-900">
+                        Danh sách lịch sử gửi ({filtered.length})
+                    </h2>
+                </div>
 
-            <Card>
-                <CardContent className="p-4 space-y-3">
-                    <h3 className="text-sm font-semibold text-gray-800">Bộ lọc</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-2">
-                        <input
-                            type="text"
-                            value={search}
-                            onChange={(e) => {
-                                setSearch(e.target.value);
-                                setPage(1);
-                            }}
-                            placeholder="Phone / tracking / msg_id / template..."
-                            className="lg:col-span-2 px-3 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:border-primary-400 bg-white"
-                        />
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => {
-                                setStatusFilter(e.target.value as typeof statusFilter);
-                                setPage(1);
-                            }}
-                            className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:border-primary-400 bg-white"
-                        >
-                            <option value="all">Tất cả trạng thái</option>
-                            <option value="pending">Đang gửi</option>
-                            <option value="sent_to_zalo">Đã gửi</option>
-                            <option value="delivered">Đã nhận</option>
-                            <option value="failed">Thất bại</option>
-                        </select>
-                        <select
-                            value={modeFilter}
-                            onChange={(e) => {
-                                setModeFilter(e.target.value as typeof modeFilter);
-                                setPage(1);
-                            }}
-                            className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:border-primary-400 bg-white"
-                        >
-                            <option value="all">Tất cả mode</option>
-                            <option value="development">🧪 Development</option>
-                            <option value="production">🚀 Production</option>
-                        </select>
-                        <select
-                            value={oaFilter}
-                            onChange={(e) => {
-                                setOaFilter(e.target.value);
-                                setPage(1);
-                            }}
-                            className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:border-primary-400 bg-white"
-                        >
-                            <option value="all">Tất cả OA</option>
-                            {connections.map((c) => (
-                                <option key={c.id} value={c.id}>
-                                    {c.oaName}
-                                </option>
-                            ))}
-                        </select>
-                        <input
-                            type="date"
-                            value={fromDate}
-                            onChange={(e) => {
-                                setFromDate(e.target.value);
-                                setPage(1);
-                            }}
-                            className="px-2 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:border-primary-400 bg-white"
-                            placeholder="Từ ngày"
-                            title="Từ ngày"
-                        />
-                        <input
-                            type="date"
-                            value={toDate}
-                            onChange={(e) => {
-                                setToDate(e.target.value);
-                                setPage(1);
-                            }}
-                            className="px-2 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:border-primary-400 bg-white"
-                            placeholder="Đến ngày"
-                            title="Đến ngày"
-                        />
-                    </div>
-                </CardContent>
-            </Card>
-
-            <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                        <thead>
-                            <tr className="bg-gray-50 border-b border-gray-200 text-left">
-                                <th className="px-3 py-2 font-medium text-gray-600">Thời gian</th>
-                                <th className="px-3 py-2 font-medium text-gray-600">OA</th>
-                                <th className="px-3 py-2 font-medium text-gray-600">Template</th>
-                                <th className="px-3 py-2 font-medium text-gray-600">Phone</th>
-                                <th className="px-3 py-2 font-medium text-gray-600">Tracking</th>
-                                <th className="px-3 py-2 font-medium text-gray-600">Mode</th>
-                                <th className="px-3 py-2 font-medium text-gray-600">Trạng thái</th>
-                                <th className="px-3 py-2 font-medium text-gray-600">msg_id / Lỗi</th>
+                    <table className="w-full min-w-[1100px]">
+                        <thead className="border-b border-gray-100 bg-gray-50/80">
+                            <tr>
+                                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Thời gian</th>
+                                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">OA / Kênh</th>
+                                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Template</th>
+                                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Người nhận</th>
+                                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                    <span className="flex items-center gap-1">Tracking <Info className="h-3.5 w-3.5 text-gray-400" /></span>
+                                </th>
+                                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Chế độ</th>
+                                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Trạng thái</th>
+                                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Mã tin / Lỗi</th>
+                                <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Thao tác</th>
                             </tr>
                         </thead>
-                        <tbody>
-                            {paginated.map((r) => (
-                                <tr key={r.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50 align-top">
-                                    <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
-                                        {new Date(r.createdAt).toLocaleString("vi-VN", {
-                                            hour12: false,
-                                        })}
-                                    </td>
-                                    <td className="px-3 py-2 text-gray-700">
-                                        {oaNameById[r.oaId] || r.oaId}
-                                    </td>
-                                    <td className="px-3 py-2 text-gray-700">
-                                        <p className="font-medium">{r.templateName || r.templateId}</p>
-                                        <p className="text-[10px] text-gray-400 font-mono">{r.templateId}</p>
-                                    </td>
-                                    <td className="px-3 py-2 font-mono text-gray-700">{r.phone}</td>
-                                    <td className="px-3 py-2 font-mono text-[10px] text-gray-500 break-all max-w-[140px]">
-                                        {r.trackingId}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        {r.mode === "production" ? (
-                                            <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-medium">
-                                                🚀 Prod
+                        <tbody className="divide-y divide-gray-100">
+                            {paginated.map((r) => {
+                                const badge = STATUS_BADGE[r.status];
+                                const oaName = oaNameById[r.oaId] || r.oaId;
+                                const time = new Date(r.createdAt);
+                                const timeStr = time.toLocaleTimeString("vi-VN", { hour12: false });
+                                const dateStr = time.toLocaleDateString("vi-VN");
+
+                                return (
+                                    <tr key={r.id} className="transition-colors hover:bg-gray-50/70">
+                                        <td className="px-5 py-4">
+                                            <p className="text-sm font-medium text-gray-900">{timeStr}</p>
+                                            <p className="text-xs text-gray-400">{dateStr}</p>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-600">Z</div>
+                                                <div>
+                                                    <p className="text-sm font-medium text-gray-900">{oaName}</p>
+                                                    <p className="text-xs text-gray-400">Zalo OA</p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <p className="text-sm font-medium text-gray-900">{r.templateName || "—"}</p>
+                                            {r.templateCode && <p className="text-xs text-gray-400">{r.templateCode}</p>}
+                                            <p className="text-[11px] text-gray-400">ID: {r.templateId}</p>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <p className="text-sm font-mono text-gray-900">{r.phone}</p>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-xs font-mono text-gray-600" title={r.trackingId}>
+                                                    {shortTrackingId(r.trackingId)}
+                                                </span>
+                                                <button
+                                                    onClick={() => navigator.clipboard.writeText(r.trackingId)}
+                                                    className="text-gray-400 hover:text-gray-600"
+                                                    title="Sao chép"
+                                                >
+                                                    <Copy className="h-3.5 w-3.5" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${r.mode === "production" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"}`}>
+                                                {r.mode === "production" ? "Prod" : "Dev"}
                                             </span>
-                                        ) : (
-                                            <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-medium">
-                                                🧪 Dev
+                                            <p className="mt-0.5 text-[11px] text-gray-400">
+                                                {r.mode === "production" ? "Gửi thật" : "Test mode"}
+                                            </p>
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${badge.className}`}>
+                                                <span className={`h-2 w-2 rounded-full ${badge.dotColor}`} />
+                                                {badge.label}
                                             </span>
-                                        )}
-                                    </td>
-                                    <td className="px-3 py-2">
-                                        <span
-                                            className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${STATUS_BADGE[r.status].className}`}
-                                        >
-                                            {STATUS_BADGE[r.status].label}
-                                        </span>
-                                    </td>
-                                    <td className="px-3 py-2 text-gray-600 max-w-[200px]">
-                                        {r.msgId && (
-                                            <p className="font-mono text-[10px] truncate" title={r.msgId}>
-                                                {r.msgId}
-                                            </p>
-                                        )}
-                                        {r.errorMessage && (
-                                            <p className="text-red-600 text-[10px]" title={r.errorMessage}>
-                                                {r.errorCode ? `[${r.errorCode}] ` : ""}
-                                                {r.errorMessage}
-                                            </p>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
+                                            {r.status === "sent_to_zalo" && (
+                                                <p className="mt-0.5 text-[11px] text-gray-400">100%</p>
+                                            )}
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            {r.msgId ? (
+                                                <p className="text-xs font-mono text-gray-600 truncate max-w-[140px]" title={r.msgId}>{r.msgId}</p>
+                                            ) : (
+                                                <span className="text-sm text-gray-400">-</span>
+                                            )}
+                                            {r.errorMessage && (
+                                                <p className="mt-0.5 text-xs text-red-500 truncate max-w-[180px]" title={r.errorMessage}>
+                                                    {r.errorCode ? `[${r.errorCode}] ` : ""}{r.errorMessage}
+                                                </p>
+                                            )}
+                                        </td>
+                                        <td className="px-5 py-4">
+                                            <div className="flex items-center justify-end">
+                                                <button className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50" title="Xem chi tiết">
+                                                    <Eye className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                );
+                            })}
                             {paginated.length === 0 && (
                                 <tr>
-                                    <td colSpan={8} className="px-3 py-8 text-center text-gray-400">
+                                    <td colSpan={9} className="px-6 py-16 text-center text-sm text-gray-400">
                                         {records.length === 0
                                             ? "Chưa có tin template nào được gửi."
                                             : "Không có kết quả khớp bộ lọc."}
@@ -440,48 +511,71 @@ export function TemplateHistorySection() {
                     </table>
                 </div>
 
-                {totalPages > 1 && (
-                    <div className="flex items-center justify-between px-3 py-2 border-t border-gray-100">
-                        <span className="text-[11px] text-gray-500">
-                            Trang {page} / {totalPages} • {filtered.length} kết quả
-                        </span>
-                        <div className="flex items-center gap-1">
-                            <button
-                                type="button"
-                                onClick={() => setPage(1)}
-                                disabled={page === 1}
-                                className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40"
-                            >
-                                «
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                                disabled={page === 1}
-                                className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40"
-                            >
-                                ‹ Trước
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-                                disabled={page >= totalPages}
-                                className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40"
-                            >
-                                Sau ›
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setPage(totalPages)}
-                                disabled={page >= totalPages}
-                                className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40"
-                            >
-                                »
-                            </button>
-                        </div>
-                    </div>
-                )}
+                <TablePagination
+                    currentPage={page}
+                    pageSize={pageSize}
+                    totalCount={filtered.length}
+                    onPageChange={setPage}
+                    onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
+                />
+            </div>
+
+            {/* Status legend */}
+            <div className="rounded-xl border border-gray-200 bg-white px-6 py-4 shadow-sm">
+                <div className="flex items-center gap-2 mb-3">
+                    <Info className="h-4 w-4 text-gray-400" />
+                    <span className="text-sm font-semibold text-gray-700">Chú thích trạng thái</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-6 text-sm text-gray-600">
+                    <span className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full bg-blue-500" />
+                        <strong>Đã gửi:</strong> Tin đã được gửi sang Zalo
+                    </span>
+                    <span className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                        <strong>Đã nhận:</strong> Khách hàng đã nhận được tin
+                    </span>
+                    <span className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full bg-amber-500" />
+                        <strong>Đang xử lý:</strong> Tin đang được gửi
+                    </span>
+                    <span className="flex items-center gap-2">
+                        <span className="h-2.5 w-2.5 rounded-full bg-red-500" />
+                        <strong>Lỗi:</strong> Gửi thất bại
+                    </span>
+                </div>
             </div>
         </div>
+    );
+}
+
+function StatCard({ icon, label, value, note, className }: { icon: React.ReactNode; label: string; value: number; note: string; className: string }) {
+    return (
+        <div className="flex items-center gap-5 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+            <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${className}`}>{icon}</span>
+            <div className="min-w-0">
+                <p className="text-sm text-gray-500">{label}</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">{value.toLocaleString("vi-VN")}</p>
+                <p className="mt-1 text-sm text-gray-400">{note}</p>
+            </div>
+        </div>
+    );
+}
+
+function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+    return (
+        <label className="block">
+            <span className="mb-2 block text-sm font-semibold text-gray-700">{label}</span>
+            <div className="relative">
+                <select
+                    value={value}
+                    onChange={(e) => onChange(e.target.value)}
+                    className="h-12 w-full appearance-none rounded-lg border border-gray-200 bg-white px-4 pr-10 text-sm text-gray-600 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
+                >
+                    {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            </div>
+        </label>
     );
 }

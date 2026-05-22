@@ -8,7 +8,7 @@ interface Props {
 export function AutomationTabBar({ active, onChange }: Props) {
   const tabs = [
     { id: "automation" as const, label: "Marketing automation" },
-    { id: "campaigns" as const, label: "Chiến dịch" },
+    // { id: "campaigns" as const, label: "Chiến dịch" },
   ];
 
   return (

@@ -24,6 +24,7 @@ export function AutomationListView({ hook }: Props) {
   const {
     filteredFlows, search, setSearch,
     trangThaiFilter, setTrangThaiFilter,
+    isLoading, error,
     setShowTemplatePicker,
     onDelete, onToggleStatus, onEdit,
   } = hook;
@@ -76,6 +77,12 @@ export function AutomationListView({ hook }: Props) {
         </div>
       </div>
 
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
@@ -91,14 +98,14 @@ export function AutomationListView({ hook }: Props) {
             </tr>
           </thead>
           <tbody>
-            {filteredFlows.length === 0 && (
+            {(isLoading || filteredFlows.length === 0) && (
               <tr>
                 <td colSpan={7} className="text-center py-12 text-gray-400">
                   <div className="flex flex-col items-center gap-2">
                     <svg className="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
-                    <span>Chưa có automation nào</span>
+                    <span>{isLoading ? "Đang tải automation..." : "Chưa có automation nào"}</span>
                   </div>
                 </td>
               </tr>

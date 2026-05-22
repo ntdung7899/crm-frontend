@@ -3,16 +3,18 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { FiPlus, FiTrash2, FiPlay } from "react-icons/fi";
+import { ChevronDown, FileText, Info, Mail, MoreVertical, RefreshCw, Search, Send } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { Card, CardContent } from "@/components/ui/Card";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
+import { TablePagination } from "@/components/ui/TablePagination";
 import {
   fetchOaTemplates,
   fetchTemplateInfo,
   sendTemplateByPhone,
 } from "@/lib/zalo-oa";
 import { apiClient } from "@/lib/api-client";
+import { formatDateVN } from "@/lib/utils";
 import {
   appendTemplateMessage,
   updateTemplateMessage,
@@ -62,10 +64,19 @@ const STATUS_BADGE: Record<
   inactive: { label: "Ngừng dùng", className: "bg-gray-100 text-gray-500" },
 };
 
+const CAMPAIGN_STATUS_BADGE: Record<Campaign["status"], { label: string; className: string }> = {
+  draft: { label: "Nháp", className: "bg-gray-100 text-gray-700" },
+  scheduled: { label: "Đã lịch", className: "bg-orange-100 text-orange-700" },
+  running: { label: "Đang gửi", className: "bg-blue-100 text-blue-700" },
+  completed: { label: "Hoàn thành", className: "bg-emerald-50 text-emerald-600" },
+};
+
 interface TemplateWithOa extends ZbsTemplate {
   connectionId: string;
   oaName: string;
 }
+
+const CAMPAIGN_PAGE_SIZE = 10;
 
 export function MarketingSection() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -77,13 +88,10 @@ export function MarketingSection() {
   const [connections, setConnections] = useState<OaConnection[]>([]);
   const [recipients, setRecipients] = useState<CampaignRecipient[]>([]);
 
-  // Thông tin biến (listParams) của template đang chọn
   const [templateInfoLoading, setTemplateInfoLoading] = useState(false);
   const [templateInfoError, setTemplateInfoError] = useState<string>("");
-  // Cho phép user nhập tay danh sách tên biến nếu API không trả (mỗi dòng 1 tên)
   const [manualParamNames, setManualParamNames] = useState<string>("");
 
-  // Filter & pagination cho danh sách template
   const [templateSearch, setTemplateSearch] = useState("");
   const [templateStatusFilter, setTemplateStatusFilter] = useState<
     "all" | ZbsTemplate["status"]
@@ -92,11 +100,24 @@ export function MarketingSection() {
   const [templatePage, setTemplatePage] = useState(1);
   const TEMPLATE_PAGE_SIZE = 6;
 
+  // Campaign filter & pagination
+  const [campaignSearch, setCampaignSearch] = useState("");
+  const [campaignStatusFilter, setCampaignStatusFilter] = useState<string>("all");
+  const [campaignModeFilter, setCampaignModeFilter] = useState<string>("all");
+  const [campaignOaFilter, setCampaignOaFilter] = useState<string>("all");
+  const [campaignPage, setCampaignPage] = useState(1);
+  const [campaignPageSize, setCampaignPageSize] = useState(CAMPAIGN_PAGE_SIZE);
+
+  // Toggle create form
+  const [showCreateForm, setShowCreateForm] = useState(false);
+
+  // Action menu
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
   useEffect(() => {
     setConnections(loadStoredConnections());
   }, []);
 
-  // Load danh sách campaigns từ backend
   useEffect(() => {
     let cancelled = false;
     apiClient
@@ -152,7 +173,6 @@ export function MarketingSection() {
     };
   }, []);
 
-  // Fetch templates cho TẤT CẢ OA đã kết nối
   useEffect(() => {
     if (connections.length === 0) return;
 
@@ -202,7 +222,6 @@ export function MarketingSection() {
     [connections],
   );
 
-  // Gộp template từ tất cả OA, gắn thêm connectionId/oaName
   const allTemplates = useMemo<TemplateWithOa[]>(() => {
     const flat: TemplateWithOa[] = [];
     for (const conn of connections) {
@@ -219,13 +238,11 @@ export function MarketingSection() {
     [allTemplates],
   );
 
-  // Số OA có ít nhất 1 template
   const oaWithTemplatesCount = useMemo(
     () => new Set(allTemplates.map((t) => t.connectionId)).size,
     [allTemplates],
   );
 
-  // Filter theo search / status / OA
   const filteredTemplates = useMemo(() => {
     const q = templateSearch.trim().toLowerCase();
     return allTemplates.filter((t) => {
@@ -247,7 +264,6 @@ export function MarketingSection() {
     Math.ceil(filteredTemplates.length / TEMPLATE_PAGE_SIZE),
   );
 
-  // Reset về page 1 khi filter thay đổi và đang ở page > totalPages
   useEffect(() => {
     if (templatePage > totalPages) setTemplatePage(1);
   }, [templatePage, totalPages]);
@@ -263,16 +279,36 @@ export function MarketingSection() {
     [allTemplates, form.templateCode],
   );
 
+  // Campaign filter
+  const filteredCampaigns = useMemo(() => {
+    const q = campaignSearch.trim().toLowerCase();
+    return campaigns.filter((c) => {
+      if (campaignStatusFilter !== "all" && c.status !== campaignStatusFilter) return false;
+      if (campaignModeFilter !== "all" && c.mode !== campaignModeFilter) return false;
+      if (campaignOaFilter !== "all" && c.channel !== campaignOaFilter) return false;
+      if (!q) return true;
+      return c.name.toLowerCase().includes(q) || (c.templateName?.toLowerCase().includes(q) ?? false);
+    });
+  }, [campaigns, campaignSearch, campaignStatusFilter, campaignModeFilter, campaignOaFilter]);
+
+  useEffect(() => {
+    setCampaignPage(1);
+  }, [campaignSearch, campaignStatusFilter, campaignModeFilter, campaignOaFilter]);
+
+  const pagedCampaigns = useMemo(
+    () => filteredCampaigns.slice((campaignPage - 1) * campaignPageSize, campaignPage * campaignPageSize),
+    [filteredCampaigns, campaignPage, campaignPageSize],
+  );
+
   const handleTemplateChange = (templateCode: string) => {
     const template = allTemplates.find((t) => t.templateCode === templateCode);
     setForm((prev) => ({
       ...prev,
       templateCode,
-      // Tự set kênh theo OA của template được chọn
       channel: template ? template.connectionId : "",
       message: template ? template.previewContent : "",
     }));
-    setRecipients([]); // reset danh sách khi đổi template (vì cột biến có thể khác)
+    setRecipients([]);
     setTemplateInfoError("");
     setManualParamNames("");
 
@@ -306,7 +342,6 @@ export function MarketingSection() {
       .finally(() => setTemplateInfoLoading(false));
   };
 
-  // Áp dụng danh sách biến nhập tay (fallback khi API /template/info không khả dụng)
   const handleApplyManualParams = () => {
     if (!selectedTemplate) return;
     const names = manualParamNames
@@ -381,19 +416,14 @@ export function MarketingSection() {
       mode: "development",
     }));
     setRecipients([]);
+    setShowCreateForm(false);
   };
 
-  /** Trạng thái progress khi đang chạy campaign */
-  const [runningCampaignId, setRunningCampaignId] = useState<string | null>(
-    null,
-  );
-  const [runProgress, setRunProgress] = useState<{
-    done: number;
-    total: number;
-  } | null>(null);
+  const [runningCampaignId, setRunningCampaignId] = useState<string | null>(null);
+  const [runProgress, setRunProgress] = useState<{ done: number; total: number } | null>(null);
 
   const handleRunCampaign = async (campaignId: string) => {
-    if (runningCampaignId) return; // tránh chạy đồng thời
+    if (runningCampaignId) return;
     const campaign = campaigns.find((c) => c.id === campaignId);
     if (!campaign) return;
 
@@ -402,9 +432,7 @@ export function MarketingSection() {
       !campaign.recipients ||
       campaign.recipients.length === 0
     ) {
-      alert(
-        "Chiến dịch này không có template hoặc danh sách người nhận hợp lệ.",
-      );
+      alert("Chiến dịch này không có template hoặc danh sách người nhận hợp lệ.");
       return;
     }
 
@@ -417,9 +445,7 @@ export function MarketingSection() {
     setRunningCampaignId(campaignId);
     setCampaigns((prev) =>
       prev.map((c) =>
-        c.id === campaignId
-          ? { ...c, status: "running", sent: 0, failed: 0 }
-          : c,
+        c.id === campaignId ? { ...c, status: "running", sent: 0, failed: 0 } : c,
       ),
     );
 
@@ -435,10 +461,8 @@ export function MarketingSection() {
       const r = campaign.recipients[i];
       const now = new Date().toISOString();
 
-      // Lưu pending log
       const recordId = `tm-${campaign.id}-${i}-${Date.now()}`;
       appendTemplateMessage({
-        // id: recordId,
         oaId: campaign.channel,
         oaOfficialId: campaign.oaOfficialId,
         templateId: campaign.templateId,
@@ -467,7 +491,6 @@ export function MarketingSection() {
         mode,
       });
 
-      // Update log
       updateTemplateMessage(recordId, {
         msgId: result.msgId,
         trackingId: result.trackingId,
@@ -487,7 +510,6 @@ export function MarketingSection() {
         failed += 1;
       }
 
-      // Lưu từng bản ghi per-recipient lên backend
       try {
         await apiClient.post("/api/v1.0/marketing", {
           id: recordId,
@@ -509,10 +531,7 @@ export function MarketingSection() {
           template_data: r.templateData,
         });
       } catch (err) {
-        console.error(
-          `[Marketing] Lưu bản ghi recipient ${r.phone} thất bại:`,
-          err,
-        );
+        console.error(`[Marketing] Lưu bản ghi recipient ${r.phone} thất bại:`, err);
       }
 
       setCampaigns((prev) =>
@@ -520,7 +539,6 @@ export function MarketingSection() {
       );
       setRunProgress({ done: i + 1, total });
 
-      // Delay 200ms giữa các tin để tránh rate limit
       if (i < campaign.recipients.length - 1) {
         await new Promise((resolve) => setTimeout(resolve, 200));
       }
@@ -535,137 +553,153 @@ export function MarketingSection() {
     setRunProgress(null);
 
     if (lastQuotaRemaining !== undefined) {
-      console.log(
-        `[Marketing] Campaign "${campaign.name}" hoàn tất. Quota còn: ${lastQuotaRemaining}`,
-      );
+      console.log(`[Marketing] Campaign "${campaign.name}" hoàn tất. Quota còn: ${lastQuotaRemaining}`);
     }
   };
 
   const handleDeleteCampaign = (campaignId: string) => {
-    setCampaigns((prev) =>
-      prev.filter((campaign) => campaign.id !== campaignId),
-    );
+    setCampaigns((prev) => prev.filter((campaign) => campaign.id !== campaignId));
+    setOpenMenuId(null);
   };
 
-  const validRecipientsCount = recipients.filter(
-    (r) => r.errors.length === 0,
-  ).length;
-  const canCreate =
-    !!form.name.trim() && !!selectedTemplate && validRecipientsCount > 0;
+  const handleSyncTemplates = () => {
+    setTemplatesByOa({});
+  };
+
+  const validRecipientsCount = recipients.filter((r) => r.errors.length === 0).length;
+  const canCreate = !!form.name.trim() && !!selectedTemplate && validRecipientsCount > 0;
   const hasConnections = connections.length > 0;
+  const runningOrScheduled = campaigns.filter((c) => c.status === "running" || c.status === "scheduled").length;
 
   return (
     <div className="space-y-6 p-6">
-      <div>
-        <h2 className="text-sm font-semibold text-gray-800">Marketing</h2>
-        <p className="text-xs text-gray-500 mt-1">
-          Tạo chiến dịch broadcast cho Zalo OA — gộp template từ tất cả OA đã
-          kết nối
-        </p>
+      {/* Header */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Marketing</h1>
+          <p className="mt-2 text-sm text-gray-500">
+            Tạo và quản lý chiến dịch broadcast qua Zalo OA, theo dõi trạng thái gửi và hiệu quả chiến dịch.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowCreateForm(true)}
+          className="inline-flex h-12 items-center gap-2 rounded-lg bg-primary-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700"
+        >
+          <FiPlus className="h-4 w-4" />
+          Tạo chiến dịch
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-        <Card>
-          <CardContent className="py-3">
-            <p className="text-xs text-gray-500">Tổng chiến dịch</p>
-            <p className="mt-1 text-lg font-bold text-gray-900">
-              {campaigns.length}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3">
-            <p className="text-xs text-gray-500">Đang chạy / đã lịch</p>
-            <p className="mt-1 text-lg font-bold text-orange-600">
-              {
-                campaigns.filter(
-                  (c) => c.status === "running" || c.status === "scheduled",
-                ).length
-              }
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3">
-            <p className="text-xs text-gray-500">Tổng tin gửi</p>
-            <p className="mt-1 text-lg font-bold text-green-700">
-              {totalSent.toLocaleString("vi-VN")}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="py-3">
-            <p className="text-xs text-gray-500">Template / OA</p>
-            <p className="mt-1 text-lg font-bold text-primary-700">
-              {approvedTemplates.length}
-              <span className="text-xs font-medium text-gray-400">
-                {" "}
-                / {allTemplates.length} • {connections.length} OA
-              </span>
-            </p>
-          </CardContent>
-        </Card>
+      {/* Stats */}
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          icon={<Send className="h-6 w-6" />}
+          label="Tổng chiến dịch"
+          value={campaigns.length}
+          note="Tất cả chiến dịch đã tạo"
+          className="bg-indigo-50 text-indigo-600"
+        />
+        <StatCard
+          icon={<FileText className="h-6 w-6" />}
+          label="Đang chạy / Đã lịch"
+          value={runningOrScheduled}
+          note="Chiến dịch đang chờ gửi"
+          className="bg-orange-50 text-orange-600"
+        />
+        <StatCard
+          icon={<Mail className="h-6 w-6" />}
+          label="Tổng tin gửi"
+          value={totalSent}
+          note="Số tin đã gửi qua Zalo OA"
+          className="bg-emerald-50 text-emerald-600"
+        />
+        <StatCard
+          icon={<FileText className="h-6 w-6" />}
+          label="Template khả dụng"
+          value={approvedTemplates.length}
+          note={`/ ${allTemplates.length} OA`}
+          subNote={`Template ZBS trên các OA`}
+          className="bg-violet-50 text-violet-600"
+        />
       </div>
 
-      {/* Danh sách template tổng hợp từ mọi OA */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-semibold text-gray-800">
-              Template từ tất cả Zalo OA
-            </h3>
-            <div className="flex items-center gap-2">
-              {templatesLoading && (
-                <span className="flex items-center gap-1.5 text-[11px] text-gray-500">
-                  <span className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-primary-600" />
-                  Đang đồng bộ...
-                </span>
-              )}
-              {/* <Link
-                href="/zalo-oa/tao-template"
-                className={`inline-flex items-center rounded-lg bg-primary-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2${connections.length === 0 ? " pointer-events-none opacity-50" : ""
-                  }`}
-                aria-disabled={connections.length === 0}
-                tabIndex={connections.length === 0 ? -1 : undefined}
-              >
-                <FiPlus className="mr-1.5 h-3.5 w-3.5" />
-                Tạo template
-              </Link> */}
+      {/* Template ZBS section */}
+      <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex items-center gap-2 border-b border-gray-100 px-6 py-4">
+          <h2 className="text-base font-bold text-gray-900">Template ZBS khả dụng</h2>
+          <Info className="h-4 w-4 text-gray-400" />
+        </div>
+
+        <div className="p-6">
+          {!hasConnections || (allTemplates.length === 0 && !templatesLoading) ? (
+            <div className="flex items-center justify-between rounded-lg border border-gray-100 bg-gray-50/50 p-8">
+              <div className="flex items-center gap-6">
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-2xl bg-emerald-50">
+                  <FileText className="h-10 w-10 text-emerald-500" />
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-gray-900">Chưa có template khả dụng</p>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {!hasConnections
+                      ? "Hiện chưa có template ZBS nào từ các OA đã kết nối."
+                      : "Các OA hiện chưa có template nào."}
+                  </p>
+                  <p className="text-sm text-gray-400">
+                    Vui lòng đồng bộ template hoặc tạo template mới trên Zalo OA để bắt đầu gửi chiến dịch.
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col gap-3">
+                <button
+                  onClick={handleSyncTemplates}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                >
+                  <RefreshCw className="h-4 w-4" />
+                  Đồng bộ template
+                </button>
+                <Link
+                  href="/zalo-oa/template-history"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-primary-600 transition hover:text-primary-700"
+                >
+                  <FileText className="h-4 w-4" />
+                  Xem lịch sử template
+                </Link>
+              </div>
             </div>
-          </div>
-
-          {!hasConnections ? (
-            <p className="text-xs text-gray-500 py-4 text-center">
-              Chưa có Zalo OA nào được kết nối. Vui lòng kết nối OA trước ở
-              trang Zalo OA.
-            </p>
-          ) : allTemplates.length === 0 && !templatesLoading ? (
-            <p className="text-xs text-gray-500 py-4 text-center">
-              Các OA hiện chưa có template nào.
-            </p>
           ) : (
-            <div className="space-y-3">
-              {/* Filter row */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+            <div className="space-y-4">
+              {templatesLoading && (
+                <div className="flex items-center gap-2 text-sm text-gray-500">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-gray-300 border-t-primary-600" />
+                  Đang đồng bộ template...
+                </div>
+              )}
+
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-600">
+                  {approvedTemplates.length} template đã duyệt từ {oaWithTemplatesCount} OA
+                </p>
+                <button
+                  onClick={handleSyncTemplates}
+                  className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-1.5 text-sm font-medium text-gray-600 transition hover:bg-gray-50"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  Đồng bộ
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <input
                   type="text"
                   value={templateSearch}
-                  onChange={(e) => {
-                    setTemplateSearch(e.target.value);
-                    setTemplatePage(1);
-                  }}
+                  onChange={(e) => { setTemplateSearch(e.target.value); setTemplatePage(1); }}
                   placeholder="Tìm tên / mã / OA..."
-                  className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:border-primary-400 focus:ring-1 focus:ring-primary-100 bg-white"
+                  className="h-10 rounded-lg border border-gray-200 bg-white px-4 text-sm outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
                 />
                 <select
                   value={templateStatusFilter}
-                  onChange={(e) => {
-                    setTemplateStatusFilter(
-                      e.target.value as typeof templateStatusFilter,
-                    );
-                    setTemplatePage(1);
-                  }}
-                  className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:border-primary-400 bg-white"
+                  onChange={(e) => { setTemplateStatusFilter(e.target.value as typeof templateStatusFilter); setTemplatePage(1); }}
+                  className="h-10 rounded-lg border border-gray-200 bg-white px-4 text-sm outline-none transition focus:border-primary-400"
                 >
                   <option value="all">Tất cả trạng thái</option>
                   <option value="approved">Đã duyệt</option>
@@ -676,275 +710,372 @@ export function MarketingSection() {
                 </select>
                 <select
                   value={templateOaFilter}
-                  onChange={(e) => {
-                    setTemplateOaFilter(e.target.value);
-                    setTemplatePage(1);
-                  }}
-                  className="px-3 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:border-primary-400 bg-white"
+                  onChange={(e) => { setTemplateOaFilter(e.target.value); setTemplatePage(1); }}
+                  className="h-10 rounded-lg border border-gray-200 bg-white px-4 text-sm outline-none transition focus:border-primary-400"
                 >
-                  <option value="all">
-                    Tất cả OA ({oaWithTemplatesCount})
-                  </option>
+                  <option value="all">Tất cả OA ({oaWithTemplatesCount})</option>
                   {connections
-                    .filter((c) =>
-                      allTemplates.some((t) => t.connectionId === c.id),
-                    )
-                    .map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.oaName}
-                      </option>
-                    ))}
+                    .filter((c) => allTemplates.some((t) => t.connectionId === c.id))
+                    .map((c) => <option key={c.id} value={c.id}>{c.oaName}</option>)}
                 </select>
               </div>
 
-              <p className="text-[11px] text-gray-400">
-                Hiển thị{" "}
-                {filteredTemplates.length === 0
-                  ? 0
-                  : (templatePage - 1) * TEMPLATE_PAGE_SIZE + 1}
-                –
-                {Math.min(
-                  templatePage * TEMPLATE_PAGE_SIZE,
-                  filteredTemplates.length,
-                )}{" "}
-                trong tổng {filteredTemplates.length} template
-                {filteredTemplates.length !== allTemplates.length
-                  ? ` (đã lọc từ ${allTemplates.length})`
-                  : ""}
-              </p>
-
               {filteredTemplates.length === 0 ? (
-                <p className="text-xs text-gray-400 text-center py-6">
-                  Không có template nào khớp bộ lọc.
-                </p>
+                <p className="py-8 text-center text-sm text-gray-400">Không có template nào khớp bộ lọc.</p>
               ) : (
-                <>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    {paginatedTemplates.map((t) => {
-                      const isSelected = form.templateCode === t.templateCode;
-                      const canPick = t.status === "approved";
-                      return (
-                        <button
-                          key={`${t.connectionId}-${t.id}`}
-                          type="button"
-                          onClick={() =>
-                            canPick && handleTemplateChange(t.templateCode)
-                          }
-                          disabled={!canPick}
-                          className={`text-left rounded-lg border p-3 transition-colors ${
-                            isSelected
-                              ? "border-primary-500 bg-primary-50/40"
-                              : canPick
-                                ? "border-gray-200 hover:border-primary-300 bg-white"
-                                : "border-gray-100 bg-gray-50 cursor-not-allowed opacity-60"
-                          }`}
-                        >
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className="px-1.5 py-0.5 rounded bg-primary-50 text-primary-700 text-[10px] font-semibold">
-                              {t.oaName}
-                            </span>
-                            <p className="text-xs font-semibold text-gray-800 truncate">
-                              {t.templateName}
-                            </p>
-                            <span
-                              className={`px-1.5 py-0.5 rounded-full text-[10px] font-medium ${STATUS_BADGE[t.status].className}`}
-                            >
-                              {STATUS_BADGE[t.status].label}
-                            </span>
-                          </div>
-                          {t.previewContent && (
-                            <p className="text-[11px] text-gray-500 line-clamp-2">
-                              {t.previewContent}
-                            </p>
-                          )}
-                          <p className="mt-1 text-[10px] text-gray-400">
-                            {t.templateType} • {t.templateCode} •{" "}
-                            {t.params.length} biến
-                          </p>
-                        </button>
-                      );
-                    })}
-                  </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {paginatedTemplates.map((t) => {
+                    const isSelected = form.templateCode === t.templateCode;
+                    const canPick = t.status === "approved";
+                    return (
+                      <button
+                        key={`${t.connectionId}-${t.id}`}
+                        type="button"
+                        onClick={() => canPick && handleTemplateChange(t.templateCode)}
+                        disabled={!canPick}
+                        className={`text-left rounded-lg border p-4 transition ${
+                          isSelected
+                            ? "border-primary-500 bg-primary-50/40 ring-1 ring-primary-200"
+                            : canPick
+                              ? "border-gray-200 hover:border-primary-300 bg-white"
+                              : "border-gray-100 bg-gray-50 cursor-not-allowed opacity-60"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <span className="rounded bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700">{t.oaName}</span>
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_BADGE[t.status].className}`}>
+                            {STATUS_BADGE[t.status].label}
+                          </span>
+                        </div>
+                        <p className="text-sm font-semibold text-gray-900 truncate">{t.templateName}</p>
+                        {t.previewContent && (
+                          <p className="mt-1 text-xs text-gray-500 line-clamp-2">{t.previewContent}</p>
+                        )}
+                        <p className="mt-2 text-[11px] text-gray-400">{t.templateType} • {t.templateCode} • {t.params.length} biến</p>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
 
-                  {totalPages > 1 && (
-                    <div className="flex items-center justify-between pt-2 border-t border-gray-100">
-                      <span className="text-[11px] text-gray-500">
-                        Trang {templatePage} / {totalPages}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          onClick={() => setTemplatePage(1)}
-                          disabled={templatePage === 1}
-                          className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          «
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setTemplatePage((p) => Math.max(1, p - 1))
-                          }
-                          disabled={templatePage === 1}
-                          className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          ‹ Trước
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setTemplatePage((p) => Math.min(totalPages, p + 1))
-                          }
-                          disabled={templatePage >= totalPages}
-                          className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          Sau ›
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setTemplatePage(totalPages)}
-                          disabled={templatePage >= totalPages}
-                          className="px-2 py-1 text-xs rounded border border-gray-200 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
-                        >
-                          »
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </>
+              {totalPages > 1 && (
+                <div className="flex items-center justify-between border-t border-gray-100 pt-3">
+                  <span className="text-xs text-gray-500">Trang {templatePage} / {totalPages}</span>
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => setTemplatePage(1)} disabled={templatePage === 1} className="rounded border border-gray-200 px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-40">«</button>
+                    <button type="button" onClick={() => setTemplatePage((p) => Math.max(1, p - 1))} disabled={templatePage === 1} className="rounded border border-gray-200 px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-40">‹ Trước</button>
+                    <button type="button" onClick={() => setTemplatePage((p) => Math.min(totalPages, p + 1))} disabled={templatePage >= totalPages} className="rounded border border-gray-200 px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-40">Sau ›</button>
+                    <button type="button" onClick={() => setTemplatePage(totalPages)} disabled={templatePage >= totalPages} className="rounded border border-gray-200 px-2 py-1 text-xs hover:bg-gray-50 disabled:opacity-40">»</button>
+                  </div>
+                </div>
               )}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      <Card>
-        <CardContent className="p-4">
-          <h3 className="text-sm font-semibold text-gray-800 mb-3">
-            Tạo chiến dịch mới
-          </h3>
-          <div className="space-y-3">
-            <Input
-              label="Tên chiến dịch"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              placeholder="VD: Khuyến mãi mùa hè"
+      {/* Campaign filters */}
+      <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_200px_160px_200px_240px_auto] xl:items-end">
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <input
+              value={campaignSearch}
+              onChange={(e) => setCampaignSearch(e.target.value)}
+              placeholder="Tìm kiếm chiến dịch..."
+              className="h-12 w-full rounded-lg border border-gray-200 bg-white pl-12 pr-4 text-sm outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
             />
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Template ZBS{" "}
-                <span className="text-gray-400 font-normal">
-                  (từ tất cả OA)
-                </span>
-              </label>
-              <Select
-                value={form.templateCode}
-                onChange={(e) => handleTemplateChange(e.target.value)}
-                options={[
-                  { value: "", label: "-- Chọn template --" },
-                  ...approvedTemplates.map((t) => ({
-                    value: t.templateCode,
-                    label: `[${t.oaName}] ${t.templateName}`,
-                  })),
-                ]}
-                size="md"
-                disabled={approvedTemplates.length === 0}
-              />
-              <p className="mt-1 text-[11px] text-gray-400">
-                {approvedTemplates.length > 0
-                  ? `Có ${approvedTemplates.length} template đã duyệt sẵn sàng để gửi từ ${oaWithTemplatesCount} OA.`
-                  : "Chưa có template nào sẵn sàng để gửi."}
-              </p>
+          </div>
+          <FilterSelect
+            label="Trạng thái"
+            value={campaignStatusFilter}
+            onChange={setCampaignStatusFilter}
+            options={[
+              { value: "all", label: "Tất cả trạng thái" },
+              { value: "draft", label: "Nháp" },
+              { value: "scheduled", label: "Đã lịch" },
+              { value: "running", label: "Đang gửi" },
+              { value: "completed", label: "Hoàn thành" },
+            ]}
+          />
+          <FilterSelect
+            label="Mode"
+            value={campaignModeFilter}
+            onChange={setCampaignModeFilter}
+            options={[
+              { value: "all", label: "Tất cả" },
+              { value: "development", label: "Development" },
+              { value: "production", label: "Production" },
+            ]}
+          />
+          <FilterSelect
+            label="Kênh (OA)"
+            value={campaignOaFilter}
+            onChange={setCampaignOaFilter}
+            options={[
+              { value: "all", label: "Tất cả OA" },
+              ...connections.map((c) => ({ value: c.id, label: c.oaName })),
+            ]}
+          />
+          <div>
+            <span className="mb-2 block text-sm font-semibold text-gray-700">Ngày gửi</span>
+            <div className="flex items-center gap-2">
+              <input type="date" className="h-12 rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none transition focus:border-primary-400" />
+              <span className="text-gray-400">~</span>
+              <input type="date" className="h-12 rounded-lg border border-gray-200 bg-white px-3 text-sm outline-none transition focus:border-primary-400" />
             </div>
+          </div>
+          <button
+            onClick={() => { setCampaignSearch(""); setCampaignStatusFilter("all"); setCampaignModeFilter("all"); setCampaignOaFilter("all"); }}
+            className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+          >
+            <RefreshCw className="h-4 w-4" />
+            Làm mới
+          </button>
+        </div>
+      </div>
 
-            <div className="hidden">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Đối tượng
-              </label>
-              <Select
-                value={form.segment}
-                onChange={(e) => setForm({ ...form, segment: e.target.value })}
-                options={segmentOptions}
-                size="md"
-              />
-            </div>
+      {/* Campaign list */}
+      <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-100 px-6 py-4">
+          <h2 className="text-base font-bold text-gray-900">
+            Danh sách chiến dịch ({filteredCampaigns.length})
+          </h2>
+        </div>
 
-            {selectedTemplate && (
-              <div className="rounded-lg bg-gray-50 border border-gray-100 p-3 space-y-1.5">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2 py-0.5 rounded bg-primary-50 text-primary-700 text-[10px] font-semibold">
-                    {selectedTemplate.oaName}
-                  </span>
-                  <p className="text-xs font-semibold text-gray-800">
-                    {selectedTemplate.templateName}
-                  </p>
-                  <span
-                    className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${STATUS_BADGE[selectedTemplate.status].className}`}
-                  >
-                    {STATUS_BADGE[selectedTemplate.status].label}
-                  </span>
-                  <span className="text-[10px] text-gray-400">
-                    {selectedTemplate.templateType} • Template ID:{" "}
-                    {selectedTemplate.templateId}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-600 whitespace-pre-line">
-                  {selectedTemplate.previewContent}
-                </p>
-                {templateInfoLoading ? (
-                  <p className="text-[11px] text-gray-500 flex items-center gap-1.5">
-                    <span className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-primary-600" />
-                    Đang tải danh sách biến của template...
-                  </p>
-                ) : selectedTemplate.params.length > 0 ? (
-                  <p className="text-[11px] text-gray-500">
-                    Biến cần truyền:{" "}
-                    {selectedTemplate.params.map((p) => (
-                      <span
-                        key={p.name}
-                        className="inline-block mr-1 px-1.5 py-0.5 bg-white border border-gray-200 rounded text-[10px] font-mono text-gray-700"
-                      >
-                        {p.name}
-                        {p.required ? " *" : ""}
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[1100px]">
+            <thead className="border-b border-gray-100 bg-gray-50/80">
+              <tr>
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Chiến dịch</th>
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">OA / Kênh</th>
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Template</th>
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Mode</th>
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Người nhận</th>
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Trạng thái</th>
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Gửi / Lỗi</th>
+                <th className="px-5 py-4 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">Lịch gửi</th>
+                <th className="px-5 py-4 text-right text-xs font-semibold uppercase tracking-wide text-gray-500">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {pagedCampaigns.map((campaign) => {
+                const oaName = channelLabelById[campaign.channel] || campaign.channel;
+                const statusBadge = CAMPAIGN_STATUS_BADGE[campaign.status] || CAMPAIGN_STATUS_BADGE.draft;
+                const isRunningThis = runningCampaignId === campaign.id;
+
+                return (
+                  <tr key={campaign.id} className="transition-colors hover:bg-gray-50/70">
+                    <td className="px-5 py-4">
+                      <p className="text-sm font-semibold text-gray-900">{campaign.name}</p>
+                      <p className="mt-0.5 text-xs text-gray-400">ID: {campaign.id.length > 18 ? campaign.id.slice(0, 18) + "..." : campaign.id}</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-600">Z</div>
+                        <div>
+                          <p className="text-sm font-medium text-gray-900">{oaName}</p>
+                          <p className="text-xs text-gray-400">Zalo OA</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-5 py-4">
+                      {campaign.templateName ? (
+                        <div>
+                          <p className="text-sm text-gray-900">{campaign.templateName}</p>
+                          <p className="text-xs text-gray-400">{campaign.templateCode || ""}</p>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-400">—</span>
+                      )}
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className={`inline-flex rounded-full px-3 py-1 text-xs font-semibold ${campaign.mode === "production" ? "bg-emerald-50 text-emerald-600" : "bg-amber-50 text-amber-600"}`}>
+                        {campaign.mode === "production" ? "Production" : "Development"}
                       </span>
-                    ))}
-                  </p>
-                ) : (
-                  <div className="space-y-1.5">
-                    <p className="text-[11px] text-amber-700">
-                      ⚠️{" "}
-                      {templateInfoError ||
-                        "Không lấy được danh sách biến từ Zalo. Hãy nhập tay tên biến của template:"}
-                    </p>
-                    <textarea
-                      value={manualParamNames}
-                      onChange={(e) => setManualParamNames(e.target.value)}
-                      placeholder={`Mỗi dòng 1 tên biến, ví dụ:\ncustomer_name\norder_code\namount`}
-                      rows={4}
-                      className="w-full px-2 py-1.5 border border-gray-200 rounded text-[11px] font-mono outline-none focus:border-primary-400 bg-white"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleApplyManualParams}
-                      className="px-3 py-1 text-[11px] rounded border border-primary-300 text-primary-700 hover:bg-primary-50"
-                    >
-                      Áp dụng danh sách biến
-                    </button>
-                    <p className="text-[10px] text-gray-400">
-                      Mẹo: vào Zalo Business → Template → bấm vào template để
-                      xem các biến (vd: <code>customer_name</code>,{" "}
-                      <code>order_code</code>, <code>amount</code>
-                      ).
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="text-sm text-gray-900">{typeof campaign.recipientsCount === "number" ? campaign.recipientsCount : "—"}</p>
+                      <p className="text-xs text-gray-400">Người</p>
+                    </td>
+                    <td className="px-5 py-4">
+                      {isRunningThis && runProgress ? (
+                        <div className="space-y-1">
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${statusBadge.className}`}>
+                            <span className="h-2 w-2 rounded-full bg-current animate-pulse" />
+                            Đang gửi
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <div className="h-1.5 w-20 rounded-full bg-gray-100 overflow-hidden">
+                              <div className="h-full bg-blue-500 transition-all" style={{ width: `${(runProgress.done / Math.max(1, runProgress.total)) * 100}%` }} />
+                            </div>
+                            <span className="text-[10px] text-gray-500">{runProgress.done}/{runProgress.total}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold ${statusBadge.className}`}>
+                            {campaign.status === "completed" && <span className="h-2 w-2 rounded-full bg-current" />}
+                            {statusBadge.label}
+                          </span>
+                          {campaign.status === "completed" && campaign.sent > 0 && (
+                            <p className="mt-0.5 text-xs text-gray-400">Gửi thành công</p>
+                          )}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-5 py-4">
+                      <p className="text-sm text-gray-900">{campaign.sent} / {campaign.failed}</p>
+                      {campaign.sent + campaign.failed > 0 && (
+                        <p className="text-xs text-gray-400">
+                          {Math.round((campaign.sent / Math.max(1, campaign.sent + campaign.failed)) * 100)}%
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-5 py-4 text-sm text-gray-700 whitespace-pre-line">
+                      {campaign.scheduledAt && campaign.scheduledAt !== "Chưa đặt lịch" ? formatDateVN(campaign.scheduledAt) : "—"}
+                    </td>
+                    <td className="px-5 py-4">
+                      <div className="relative flex items-center justify-end">
+                        <button
+                          onClick={() => setOpenMenuId(openMenuId === campaign.id ? null : campaign.id)}
+                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50"
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </button>
+                        {openMenuId === campaign.id && (
+                          <div className="absolute right-0 top-11 z-20 w-48 rounded-xl border border-gray-100 bg-white py-2 shadow-xl">
+                            {campaign.status !== "completed" && campaign.status !== "running" && (
+                              <button
+                                onClick={() => { setOpenMenuId(null); handleRunCampaign(campaign.id); }}
+                                disabled={!!runningCampaignId}
+                                className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-blue-600 transition hover:bg-blue-50 disabled:opacity-40"
+                              >
+                                <FiPlay className="h-4 w-4" />
+                                Chạy ngay
+                              </button>
+                            )}
+                            <button
+                              onClick={() => handleDeleteCampaign(campaign.id)}
+                              disabled={isRunningThis}
+                              className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm font-medium text-red-500 transition hover:bg-red-50 disabled:opacity-40"
+                            >
+                              <FiTrash2 className="h-4 w-4" />
+                              Xóa chiến dịch
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {filteredCampaigns.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-6 py-16 text-center text-sm text-gray-400">Chưa có chiến dịch nào</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
 
-            {selectedTemplate &&
-              !templateInfoLoading &&
-              selectedTemplate.params.length > 0 && (
+        <TablePagination
+          currentPage={campaignPage}
+          pageSize={campaignPageSize}
+          totalCount={filteredCampaigns.length}
+          onPageChange={setCampaignPage}
+          onPageSizeChange={(size) => { setCampaignPageSize(size); setCampaignPage(1); }}
+        />
+      </div>
+
+      {/* Create campaign modal */}
+      {showCreateForm && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-6 pt-20">
+          <div className="w-full max-w-2xl rounded-2xl border border-gray-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+              <h2 className="text-lg font-bold text-gray-900">Tạo chiến dịch mới</h2>
+              <button onClick={() => setShowCreateForm(false)} className="rounded-lg p-2 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600">
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            <div className="space-y-4 p-6">
+              <Input
+                label="Tên chiến dịch"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                placeholder="VD: Khuyến mãi mùa hè"
+              />
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Template ZBS <span className="font-normal text-gray-400">(từ tất cả OA)</span>
+                </label>
+                <Select
+                  value={form.templateCode}
+                  onChange={(e) => handleTemplateChange(e.target.value)}
+                  options={[
+                    { value: "", label: "-- Chọn template --" },
+                    ...approvedTemplates.map((t) => ({
+                      value: t.templateCode,
+                      label: `[${t.oaName}] ${t.templateName}`,
+                    })),
+                  ]}
+                  size="md"
+                  disabled={approvedTemplates.length === 0}
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  {approvedTemplates.length > 0
+                    ? `Có ${approvedTemplates.length} template đã duyệt sẵn sàng để gửi từ ${oaWithTemplatesCount} OA.`
+                    : "Chưa có template nào sẵn sàng để gửi."}
+                </p>
+              </div>
+
+              {selectedTemplate && (
+                <div className="rounded-lg border border-gray-100 bg-gray-50 p-4 space-y-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="rounded bg-primary-50 px-2 py-0.5 text-[11px] font-semibold text-primary-700">{selectedTemplate.oaName}</span>
+                    <p className="text-sm font-semibold text-gray-800">{selectedTemplate.templateName}</p>
+                    <span className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${STATUS_BADGE[selectedTemplate.status].className}`}>
+                      {STATUS_BADGE[selectedTemplate.status].label}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-600 whitespace-pre-line">{selectedTemplate.previewContent}</p>
+                  {templateInfoLoading ? (
+                    <p className="flex items-center gap-2 text-xs text-gray-500">
+                      <span className="h-3 w-3 animate-spin rounded-full border-2 border-gray-300 border-t-primary-600" />
+                      Đang tải danh sách biến...
+                    </p>
+                  ) : selectedTemplate.params.length > 0 ? (
+                    <p className="text-xs text-gray-500">
+                      Biến cần truyền:{" "}
+                      {selectedTemplate.params.map((p) => (
+                        <span key={p.name} className="mr-1 inline-block rounded border border-gray-200 bg-white px-1.5 py-0.5 font-mono text-[10px] text-gray-700">
+                          {p.name}{p.required ? " *" : ""}
+                        </span>
+                      ))}
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-xs text-amber-700">
+                        {templateInfoError || "Không lấy được danh sách biến từ Zalo. Hãy nhập tay tên biến:"}
+                      </p>
+                      <textarea
+                        value={manualParamNames}
+                        onChange={(e) => setManualParamNames(e.target.value)}
+                        placeholder={`Mỗi dòng 1 tên biến, ví dụ:\ncustomer_name\norder_code`}
+                        rows={3}
+                        className="w-full rounded border border-gray-200 px-3 py-2 font-mono text-xs outline-none focus:border-primary-400"
+                      />
+                      <button type="button" onClick={handleApplyManualParams} className="rounded border border-primary-300 px-3 py-1.5 text-xs text-primary-700 hover:bg-primary-50">
+                        Áp dụng danh sách biến
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {selectedTemplate && !templateInfoLoading && selectedTemplate.params.length > 0 && (
                 <CampaignRecipientsImport
                   params={selectedTemplate.params}
                   recipients={recipients}
@@ -954,229 +1085,77 @@ export function MarketingSection() {
                 />
               )}
 
-            <Input
-              label="Lịch gửi (nếu có)"
-              type="datetime-local"
-              value={form.scheduledAt}
-              onChange={(e) =>
-                setForm({ ...form, scheduledAt: e.target.value })
-              }
-            />
+              <Input
+                label="Lịch gửi (nếu có)"
+                type="datetime-local"
+                value={form.scheduledAt}
+                onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })}
+              />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Chế độ gửi
-              </label>
-              <div className="flex gap-2">
-                <label
-                  className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-xs ${
-                    form.mode === "development"
-                      ? "border-amber-400 bg-amber-50 text-amber-800"
-                      : "border-gray-200 bg-white hover:border-gray-300"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="campaign-mode"
-                    value="development"
-                    checked={form.mode === "development"}
-                    onChange={() => setForm({ ...form, mode: "development" })}
-                    className="mr-2"
-                  />
-                  <span className="font-semibold">🧪 Development</span>
-                  <p className="text-[10px] text-gray-500 mt-0.5 ml-5">
-                    Test gửi — không trừ quota, không gửi tới máy khách thật.
-                  </p>
-                </label>
-                <label
-                  className={`flex-1 cursor-pointer rounded-lg border px-3 py-2 text-xs ${
-                    form.mode === "production"
-                      ? "border-emerald-400 bg-emerald-50 text-emerald-800"
-                      : "border-gray-200 bg-white hover:border-gray-300"
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="campaign-mode"
-                    value="production"
-                    checked={form.mode === "production"}
-                    onChange={() => setForm({ ...form, mode: "production" })}
-                    className="mr-2"
-                  />
-                  <span className="font-semibold">🚀 Production</span>
-                  <p className="text-[10px] text-gray-500 mt-0.5 ml-5">
-                    Gửi thật — trừ quota OA, tin nhắn đến khách hàng.
-                  </p>
-                </label>
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">Chế độ gửi</label>
+                <div className="flex gap-3">
+                  <label className={`flex-1 cursor-pointer rounded-lg border px-4 py-3 text-sm ${form.mode === "development" ? "border-amber-400 bg-amber-50 text-amber-800" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+                    <input type="radio" name="campaign-mode" value="development" checked={form.mode === "development"} onChange={() => setForm({ ...form, mode: "development" })} className="mr-2" />
+                    <span className="font-semibold">Development</span>
+                    <p className="ml-5 mt-0.5 text-xs text-gray-500">Test gửi — không trừ quota.</p>
+                  </label>
+                  <label className={`flex-1 cursor-pointer rounded-lg border px-4 py-3 text-sm ${form.mode === "production" ? "border-emerald-400 bg-emerald-50 text-emerald-800" : "border-gray-200 bg-white hover:border-gray-300"}`}>
+                    <input type="radio" name="campaign-mode" value="production" checked={form.mode === "production"} onChange={() => setForm({ ...form, mode: "production" })} className="mr-2" />
+                    <span className="font-semibold">Production</span>
+                    <p className="ml-5 mt-0.5 text-xs text-gray-500">Gửi thật — trừ quota OA.</p>
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3 border-t border-gray-100 pt-4">
+                <button onClick={() => setShowCreateForm(false)} className="flex-1 rounded-lg border border-gray-200 bg-white py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+                  Hủy
+                </button>
+                <button onClick={handleCreateCampaign} disabled={!canCreate} className="flex-1 rounded-lg bg-primary-600 py-3 text-sm font-semibold text-white transition hover:bg-primary-700 disabled:opacity-50">
+                  {validRecipientsCount > 0
+                    ? `Tạo chiến dịch (${validRecipientsCount} người nhận)`
+                    : "Tạo chiến dịch"}
+                </button>
               </div>
             </div>
-
-            <Button
-              type="button"
-              variant="primary"
-              className="w-full text-sm"
-              onClick={handleCreateCampaign}
-              disabled={!canCreate}
-            >
-              {validRecipientsCount > 0
-                ? `Tạo chiến dịch (${validRecipientsCount} người nhận, ${form.mode === "development" ? "Dev" : "Prod"})`
-                : "Tạo chiến dịch"}
-            </Button>
           </div>
-        </CardContent>
-      </Card>
-
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-left">
-                <th className="px-3 py-2 font-medium text-gray-600">#</th>
-                <th className="px-3 py-2 font-medium text-gray-600">Tên</th>
-                <th className="px-3 py-2 font-medium text-gray-600">Kênh</th>
-                <th className="px-3 py-2 font-medium text-gray-600">
-                  Template
-                </th>
-                <th className="px-3 py-2 font-medium text-gray-600">Mode</th>
-                <th className="px-3 py-2 font-medium text-gray-600">
-                  Người nhận
-                </th>
-                <th className="px-3 py-2 font-medium text-gray-600">
-                  Trạng thái
-                </th>
-                <th className="px-3 py-2 font-medium text-gray-600">
-                  Gửi / Lỗi
-                </th>
-                <th className="px-3 py-2 font-medium text-gray-600 w-20">
-                  Thao tác
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {campaigns.map((campaign, idx) => (
-                <tr
-                  key={campaign.id}
-                  className="border-b border-gray-100 last:border-0 hover:bg-gray-50 text-xs"
-                >
-                  <td className="px-3 py-2 text-gray-500">{idx + 1}</td>
-                  <td className="px-3 py-2 font-medium text-gray-800">
-                    {campaign.name}
-                  </td>
-                  <td className="px-3 py-2 text-gray-600">
-                    {channelLabelById[campaign.channel] || campaign.channel}
-                  </td>
-                  <td className="px-3 py-2 text-gray-600">
-                    {campaign.templateName ? (
-                      <span title={campaign.templateCode}>
-                        {campaign.templateName}
-                      </span>
-                    ) : (
-                      <span className="text-gray-400">—</span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2">
-                    {campaign.mode === "production" ? (
-                      <span className="px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 text-[10px] font-medium">
-                        🚀 Prod
-                      </span>
-                    ) : (
-                      <span className="px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 text-[10px] font-medium">
-                        🧪 Dev
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-gray-600">
-                    {typeof campaign.recipientsCount === "number"
-                      ? campaign.recipientsCount.toLocaleString("vi-VN")
-                      : "—"}
-                  </td>
-                  <td className="px-3 py-2">
-                    {campaign.status === "running" &&
-                    runningCampaignId === campaign.id ? (
-                      <div className="flex items-center gap-1.5">
-                        <span className="px-2 py-1 rounded text-[10px] font-medium bg-blue-100 text-blue-700">
-                          Đang gửi
-                        </span>
-                        {runProgress && (
-                          <div className="flex items-center gap-1">
-                            <div className="w-16 h-1 rounded-full bg-gray-100 overflow-hidden">
-                              <div
-                                className="h-full bg-blue-500 transition-all"
-                                style={{
-                                  width: `${(runProgress.done / Math.max(1, runProgress.total)) * 100}%`,
-                                }}
-                              />
-                            </div>
-                            <span className="text-[10px] text-gray-500">
-                              {runProgress.done}/{runProgress.total}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    ) : (
-                      <span
-                        className={`px-2 py-1 rounded text-[10px] font-medium ${
-                          campaign.status === "draft"
-                            ? "bg-gray-100 text-gray-700"
-                            : campaign.status === "scheduled"
-                              ? "bg-orange-100 text-orange-700"
-                              : campaign.status === "running"
-                                ? "bg-blue-100 text-blue-700"
-                                : "bg-green-100 text-green-700"
-                        }`}
-                      >
-                        {campaign.status === "draft"
-                          ? "Nháp"
-                          : campaign.status === "scheduled"
-                            ? "Đã lịch"
-                            : campaign.status === "running"
-                              ? "Đang gửi"
-                              : "Hoàn thành"}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-gray-600">
-                    {campaign.sent} / {campaign.failed}
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex items-center gap-1">
-                      {campaign.status !== "completed" &&
-                        campaign.status !== "running" && (
-                          <button
-                            onClick={() => handleRunCampaign(campaign.id)}
-                            disabled={!!runningCampaignId}
-                            className="p-1 text-blue-600 hover:bg-blue-50 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                            title="Chạy ngay"
-                          >
-                            <FiPlay className="w-4 h-4" />
-                          </button>
-                        )}
-                      <button
-                        onClick={() => handleDeleteCampaign(campaign.id)}
-                        disabled={runningCampaignId === campaign.id}
-                        className="p-1 text-red-600 hover:bg-red-50 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        title="Xóa"
-                      >
-                        <FiTrash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {campaigns.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={9}
-                    className="px-3 py-6 text-center text-gray-400"
-                  >
-                    Chưa có chiến dịch nào
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
         </div>
+      )}
+    </div>
+  );
+}
+
+function StatCard({ icon, label, value, note, subNote, className }: { icon: React.ReactNode; label: string; value: number; note: string; subNote?: string; className: string }) {
+  return (
+    <div className="flex items-center gap-5 rounded-xl border border-gray-100 bg-white p-6 shadow-sm">
+      <span className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${className}`}>{icon}</span>
+      <div className="min-w-0">
+        <p className="text-sm text-gray-500">{label}</p>
+        <p className="mt-1 text-2xl font-bold text-gray-900">
+          {value.toLocaleString("vi-VN")}
+          {subNote && <span className="ml-1 text-xs font-medium text-gray-400">{note}</span>}
+        </p>
+        <p className="mt-1 text-sm text-gray-400">{subNote || note}</p>
       </div>
     </div>
+  );
+}
+
+function FilterSelect({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-semibold text-gray-700">{label}</span>
+      <div className="relative">
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="h-12 w-full appearance-none rounded-lg border border-gray-200 bg-white px-4 pr-10 text-sm text-gray-600 outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
+        >
+          {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+        </select>
+        <ChevronDown className="pointer-events-none absolute right-4 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+      </div>
+    </label>
   );
 }

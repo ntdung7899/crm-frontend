@@ -1,7 +1,16 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { AutomationFlow, AutomationTemplate, AutomationNode, AutomationEdge, NodeType } from "../_types";
+import type { AutomationDetail, AutomationHeader, AutomationSaveBody, AutomationStatus, ConditionResult } from "../_types/api";
+import {
+  changeAutomationStatus,
+  createAutomation,
+  deleteAutomation,
+  getAutomationDetail,
+  getAutomations,
+  updateAutomation,
+} from "./automationApi";
 
 // ── Seed data ──────────────────────────────────────────────────────────────
 
@@ -201,12 +210,98 @@ const SEED_TEMPLATES: AutomationTemplate[] = [
 let nextId = 100;
 const genId = (prefix: string) => `${prefix}${++nextId}`;
 
+const statusToUi = (status: AutomationStatus): AutomationFlow["trangThai"] => status === "paused" ? "inactive" : status;
+const conditionResultFromLabel = (label?: string): ConditionResult => {
+  if (label === "true" || label === "Có") return "true";
+  if (label === "false" || label === "Không") return "false";
+  return "default";
+};
+
+function toUiFlow(header: AutomationHeader, detail?: AutomationDetail): AutomationFlow {
+  return {
+    id: header.id,
+    name: header.name,
+    trangThai: statusToUi(header.status),
+    trigger: header.trigger_name,
+    soLuotChay: header.run_count,
+    tiLeThanhCong: Math.round(header.success_rate),
+    nguoiTao: header.created_by_name,
+    ngayTao: header.created_at.slice(0, 10),
+    ngayCapNhat: header.updated_at.slice(0, 10),
+    nodes: detail?.nodes.map((node) => ({
+      id: node.id,
+      type: node.node_type,
+      label: node.name,
+      x: node.position_x ?? 0,
+      y: node.position_y ?? 0,
+      config: {
+        ...(node.config ?? {}),
+        event: node.trigger_type ?? (node.config?.event as string | undefined),
+        action: node.action_type === "send_zalo_message" ? "send_zalo" : node.action_type ?? (node.config?.action as string | undefined),
+        amount: node.delay_value?.toString() ?? (node.config?.amount as string | undefined),
+        unit: node.delay_unit ?? (node.config?.unit as string | undefined),
+      },
+    })) ?? [],
+    edges: detail?.edges.map((edge) => ({
+      id: edge.id,
+      from: edge.source_node_id,
+      to: edge.target_node_id,
+      label: edge.condition_result && edge.condition_result !== "default" ? edge.condition_result : undefined,
+    })) ?? [],
+  };
+}
+
+function toApiBody(name: string, nodes: AutomationNode[], edges: AutomationEdge[]): AutomationSaveBody {
+  const triggerNode = nodes.find((node) => node.type === "trigger");
+
+  const triggerName = triggerNode?.label || "Chưa cấu hình";
+
+  return {
+    name,
+    trigger_name: triggerName,
+    automation: {
+      name,
+      trigger_name: triggerName,
+    },
+    nodes: nodes.map((node, index) => {
+      const config = { ...node.config };
+      const event = typeof config.event === "string" ? config.event : undefined;
+      const action = typeof config.action === "string" ? config.action : undefined;
+      const amount = Number(config.amount);
+
+      return {
+        temp_id: node.id,
+        node_type: node.type,
+        name: node.label,
+        trigger_type: node.type === "trigger"
+          ? event === "follow_oa" ? "zalo_follow" : event === "send_message" ? "zalo_message" : "customer_created"
+          : null,
+        action_type: node.type === "action" ? action === "create_task" ? "create_task" : "send_zalo_message" : null,
+        delay_value: node.type === "delay" && Number.isFinite(amount) ? amount : undefined,
+        delay_unit: node.type === "delay" && ["minute", "hour", "day", "week"].includes(String(config.unit)) ? config.unit as "minute" | "hour" | "day" | "week" : undefined,
+        config,
+        position_x: node.x,
+        position_y: node.y,
+        sort_order: index,
+        is_active: true,
+      };
+    }),
+    edges: edges.map((edge) => ({
+      source_node_temp_id: edge.from,
+      target_node_temp_id: edge.to,
+      condition_result: conditionResultFromLabel(edge.label),
+    })),
+  };
+}
+
 export function useMarketingAutomation() {
-  const [flows, setFlows] = useState<AutomationFlow[]>(SEED_FLOWS);
+  const [flows, setFlows] = useState<AutomationFlow[]>([]);
   const [search, setSearch] = useState("");
   const [trangThaiFilter, setTrangThaiFilter] = useState<"all" | "active" | "inactive" | "draft">("all");
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [editingFlow, setEditingFlow] = useState<AutomationFlow | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   // Builder state
   const [builderNodes, setBuilderNodes] = useState<AutomationNode[]>([]);
@@ -217,28 +312,60 @@ export function useMarketingAutomation() {
 
   const templates = SEED_TEMPLATES;
 
+  const loadFlows = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const status = trangThaiFilter === "inactive" ? "paused" : trangThaiFilter;
+      const data = await getAutomations({ status, search: search || undefined, page: 1, limit: 200 });
+      setFlows(data.rows.map((row) => toUiFlow(row)));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không tải được danh sách automation");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [search, trangThaiFilter]);
+
+  useEffect(() => {
+    void loadFlows();
+  }, [loadFlows]);
+
   // List handlers
-  const onDelete = useCallback((id: string) => {
+  const onDelete = useCallback(async (id: string) => {
+    await deleteAutomation(id);
     setFlows((prev) => prev.filter((f) => f.id !== id));
   }, []);
 
-  const onToggleStatus = useCallback((id: string) => {
+  const onToggleStatus = useCallback(async (id: string) => {
+    const current = flows.find((flow) => flow.id === id);
+    if (!current) return;
+
+    const nextStatus = current.trangThai === "active" ? "paused" : "active";
+    await changeAutomationStatus(id, nextStatus);
     setFlows((prev) =>
       prev.map((f) =>
         f.id === id
-          ? { ...f, trangThai: f.trangThai === "active" ? "inactive" : "active" }
+          ? { ...f, trangThai: statusToUi(nextStatus) }
           : f,
       ),
     );
-  }, []);
+  }, [flows]);
 
-  const onEdit = useCallback((flow: AutomationFlow) => {
-    setEditingFlow(flow);
-    setBuilderNodes(flow.nodes.map((n) => ({ ...n })));
-    setBuilderEdges(flow.edges.map((e) => ({ ...e })));
-    setBuilderName(flow.name);
-    setSelectedNodeId(null);
-    setConnectingFrom(null);
+  const onEdit = useCallback(async (flow: AutomationFlow) => {
+    setError(null);
+    try {
+      const detail = await getAutomationDetail(flow.id);
+      const fullFlow = toUiFlow(detail.automation, detail);
+      setEditingFlow(fullFlow);
+      setBuilderNodes(fullFlow.nodes.map((n) => ({ ...n })));
+      setBuilderEdges(fullFlow.edges.map((e) => ({ ...e })));
+      setBuilderName(fullFlow.name);
+      setSelectedNodeId(null);
+      setConnectingFrom(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không tải được chi tiết automation");
+    }
   }, []);
 
   const onCreate = useCallback((template?: AutomationTemplate) => {
@@ -276,28 +403,26 @@ export function useMarketingAutomation() {
     setConnectingFrom(null);
   }, []);
 
-  const saveFlow = useCallback(() => {
+  const saveFlow = useCallback(async () => {
     if (!editingFlow) return;
-    const updated: AutomationFlow = {
-      ...editingFlow,
-      name: builderName,
-      nodes: builderNodes,
-      edges: builderEdges,
-      ngayCapNhat: new Date().toISOString().slice(0, 10),
-      trigger: builderNodes.find((n) => n.type === "trigger")?.label ?? editingFlow.trigger,
-    };
-    setFlows((prev) => {
-      const idx = prev.findIndex((f) => f.id === editingFlow.id);
-      if (idx >= 0) {
-        const next = [...prev];
-        next[idx] = updated;
-        return next;
+
+    const body = toApiBody(builderName, builderNodes, builderEdges);
+
+    try {
+      const isExisting = flows.some((flow) => flow.id === editingFlow.id);
+      if (isExisting) {
+        await updateAutomation(editingFlow.id, body);
+      } else {
+        await createAutomation(body);
       }
-      return [...prev, updated];
-    });
-    setEditingFlow(null);
-    setSelectedNodeId(null);
-  }, [editingFlow, builderName, builderNodes, builderEdges]);
+
+      await loadFlows();
+      setEditingFlow(null);
+      setSelectedNodeId(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Không lưu được automation");
+    }
+  }, [editingFlow, builderName, builderNodes, builderEdges, flows, loadFlows]);
 
   // Builder node/edge handlers
   const addNode = useCallback((type: NodeType) => {
@@ -348,16 +473,13 @@ export function useMarketingAutomation() {
     setBuilderEdges((prev) => prev.filter((e) => e.id !== id));
   }, []);
 
-  const filteredFlows = flows.filter((f) => {
-    const matchSearch = !search || f.name.toLowerCase().includes(search.toLowerCase()) || f.trigger.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = trangThaiFilter === "all" || f.trangThai === trangThaiFilter;
-    return matchSearch && matchStatus;
-  });
+  const filteredFlows = flows;
 
   return {
     // list
     flows, filteredFlows, search, setSearch,
     trangThaiFilter, setTrangThaiFilter,
+    isLoading, error,
     showTemplatePicker, setShowTemplatePicker,
     templates,
     onDelete, onToggleStatus, onEdit, onCreate,

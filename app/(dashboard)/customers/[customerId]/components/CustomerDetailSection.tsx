@@ -1,8 +1,6 @@
 import { ReactNode } from "react";
-import { Pencil } from "lucide-react";
-import { Badge } from "@/components/ui/Badge";
-import { Button } from "@/components/ui/Button";
-import { formatDateVNDateOnly } from "@/lib/utils";
+import { BriefcaseBusiness, Calendar, Clock, FileText, MessageSquare, Pencil, ShieldCheck, User, UserRound, Users } from "lucide-react";
+import { formatDateVN, formatDateVNDateOnly } from "@/lib/utils";
 import { Customer } from "@/types/customer";
 
 type CustomerDetailSectionProps = {
@@ -12,108 +10,138 @@ type CustomerDetailSectionProps = {
 
 export function CustomerDetailSection({ customer, onEdit }: CustomerDetailSectionProps) {
     return (
-        <div className="space-y-6">
-            <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                    {customer.is_active === false ? (
-                        <Badge variant="warning">Ngưng hoạt động</Badge>
-                    ) : (
-                        <Badge variant="success">Hoạt động</Badge>
-                    )}
-                    {customer.type && <Badge variant="info">{customer.type === "company" ? "Doanh nghiệp" : "Cá nhân"}</Badge>}
-                </div>
-                <Button variant="outline" onClick={onEdit}>
-                    <Pencil className="w-4 h-4 mr-2" />
-                    Chỉnh sửa thông tin
-                </Button>
+        <div className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                <InfoCard icon={<FileText className="h-5 w-5" />} title="Thông tin liên hệ" onEdit={onEdit}>
+                    <TwoColumnInfo
+                        left={[
+                            ["Số điện thoại", customer.phone || customer.mobilePhone || "Chưa cập nhật"],
+                            ["Địa chỉ", customer.address || "Chưa cập nhật"],
+                            ["Website", customer.website || "Chưa cập nhật"],
+                        ]}
+                        right={[
+                            ["Email", customer.email || "Chưa cập nhật"],
+                            ["Leader (Quản lý phụ trách)", customer.leader_assignee || "Chưa phân công"],
+                            ["Worker (Nhân viên chăm sóc)", customer.worker_assignee || "Chưa phân công"],
+                        ]}
+                    />
+                </InfoCard>
+
+                <InfoCard icon={<UserRound className="h-5 w-5" />} title="Phân công & chăm sóc" onEdit={onEdit}>
+                    <TwoColumnInfo
+                        left={[
+                            ["Leader (Quản lý phụ trách)", customer.leader_assignee || "Chưa phân công"],
+                            ["Worker (Nhân viên chăm sóc)", customer.worker_assignee || "Chưa phân công"],
+                        ]}
+                        right={[
+                            ["Trạng thái", customer.is_active === false ? "Ngưng hoạt động" : "Khách hàng", "success"],
+                            ["Nhóm khách hàng", customer.groups?.[0] || "Chưa nhóm", "purple"],
+                            ["Nguồn khách hàng", customer.customerSource || customer.source || "Zalo OA", "blue"],
+                        ]}
+                    />
+                </InfoCard>
+
+                <InfoCard icon={<User className="h-5 w-5" />} title="Thông tin cá nhân" onEdit={onEdit}>
+                    <TwoColumnInfo
+                        left={[
+                            ["Giới tính", customer.gender === "Male" ? "Nam" : customer.gender === "Female" ? "Nữ" : "Khác"],
+                            ["Ngày sinh", customer.day_of_birth ? formatDateVNDateOnly(customer.day_of_birth) : "Chưa cập nhật"],
+                        ]}
+                        right={[["Nghề nghiệp", customer.major || "Chưa cập nhật"]]}
+                    />
+                </InfoCard>
+
+                <InfoCard icon={<BriefcaseBusiness className="h-5 w-5" />} title="Thông tin doanh nghiệp" onEdit={onEdit}>
+                    <TwoColumnInfo
+                        left={[
+                            ["Tên công ty", customer.company_name || "Chưa cập nhật"],
+                            ["Mã số thuế", customer.tax_code || "Chưa cập nhật"],
+                        ]}
+                        right={[
+                            ["Ngày thành lập", customer.company_establish_date ? formatDateVNDateOnly(customer.company_establish_date) : "Chưa cập nhật"],
+                            ["Quy mô", "Chưa cập nhật"],
+                        ]}
+                    />
+                </InfoCard>
             </div>
 
-            <Section title="Thông tin liên hệ">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InfoItem label="Số điện thoại" value={customer.phone || "-"} />
-                    <InfoItem label="Email" value={customer.email || "-"} />
-                    <InfoItem label="Địa chỉ" value={customer.address || "-"} className="md:col-span-2" />
-                    <InfoItem label="Website" value={customer.website || "-"} />
-                    <InfoItem label="Leader" value={customer.leader_assignee || "-"} />
-                    <InfoItem label="Worker" value={customer.worker_assignee || "-"} />
+            <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+                <div className="mb-5 flex items-center gap-2 text-primary-600">
+                    <Clock className="h-5 w-5" />
+                    <h3 className="text-sm font-bold uppercase tracking-wide text-gray-900">Mốc thời gian</h3>
                 </div>
-            </Section>
-
-            <Section title="Thông tin cá nhân">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InfoItem
-                        label="Giới tính"
-                        value={customer.gender === "Male" ? "Nam" : customer.gender === "Female" ? "Nữ" : "Khác"}
-                    />
-                    <InfoItem
-                        label="Ngày sinh"
-                        value={customer.day_of_birth ? formatDateVNDateOnly(customer.day_of_birth) : "-"}
-                    />
-                    <InfoItem label="Ngành nghề" value={customer.major || "-"} />
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <TimelineItem icon={<Calendar className="h-5 w-5" />} label="Ngày tạo" value={formatDateVN(customer.createdDate).replace("\n", " ")} className="bg-violet-50 text-violet-600" />
+                    <TimelineItem icon={<Clock className="h-5 w-5" />} label="Cập nhật gần nhất" value={customer.lastContactDate ? formatDateVN(customer.lastContactDate).replace("\n", " ") : "Chưa có dữ liệu"} className="bg-sky-50 text-sky-600" />
+                    <TimelineItem icon={<MessageSquare className="h-5 w-5" />} label="Tương tác gần nhất" value="Chưa có dữ liệu" className="bg-emerald-50 text-emerald-600" />
+                    <TimelineItem icon={<ShieldCheck className="h-5 w-5" />} label="Chăm sóc gần nhất" value="Chưa có dữ liệu" className="bg-amber-50 text-amber-600" />
                 </div>
-            </Section>
-
-            <Section title="Thông tin doanh nghiệp">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InfoItem label="Tên công ty" value={customer.company_name || "-"} />
-                    <InfoItem label="Mã số thuế" value={customer.tax_code || "-"} />
-                    <InfoItem
-                        label="Ngày thành lập"
-                        value={customer.company_establish_date ? formatDateVNDateOnly(customer.company_establish_date) : "-"}
-                    />
-                </div>
-            </Section>
-
-            {(customer.description || customer.note) && (
-                <Section title="Ghi chú">
-                    <div className="space-y-3">
-                        {customer.description && <InfoItem label="Mô tả" value={customer.description} />}
-                        {customer.note && <InfoItem label="Ghi chú" value={customer.note} />}
-                    </div>
-                </Section>
-            )}
-
-            {customer.groups && customer.groups.length > 0 && (
-                <Section title="Nhóm khách hàng">
-                    <div className="flex flex-wrap gap-2">
-                        {customer.groups.map((groupName) => (
-                            <Badge key={groupName} variant="info">
-                                {groupName}
-                            </Badge>
-                        ))}
-                    </div>
-                </Section>
-            )}
-
-            <Section title="Mốc thời gian">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <InfoItem label="Ngày tạo" value={customer.createdDate ? formatDateVNDateOnly(customer.createdDate) : "-"} />
-                    <InfoItem
-                        label="Cập nhật lần cuối"
-                        value={customer.lastContactDate ? formatDateVNDateOnly(customer.lastContactDate) : "-"}
-                    />
-                </div>
-            </Section>
+            </div>
         </div>
     );
 }
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function InfoCard({ icon, title, onEdit, children }: { icon: ReactNode; title: string; onEdit: () => void; children: ReactNode }) {
+    return (
+        <section className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="mb-5 flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                    <span className="text-primary-600">{icon}</span>
+                    <h3 className="text-sm font-bold uppercase tracking-wide text-gray-900">{title}</h3>
+                </div>
+                <button onClick={onEdit} className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50">
+                    <Pencil className="h-4 w-4" />
+                    Chỉnh sửa
+                </button>
+            </div>
+            {children}
+        </section>
+    );
+}
+
+function TwoColumnInfo({ left, right }: { left: InfoTuple[]; right: InfoTuple[] }) {
+    return (
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div className="space-y-4 md:border-r md:border-gray-100 md:pr-6">
+                {left.map(([label, value, variant]) => <InfoItem key={label} label={label} value={value} variant={variant} />)}
+            </div>
+            <div className="space-y-4">
+                {right.map(([label, value, variant]) => <InfoItem key={label} label={label} value={value} variant={variant} />)}
+            </div>
+        </div>
+    );
+}
+
+type InfoVariant = "success" | "purple" | "blue";
+type InfoTuple = [string, string] | [string, string, InfoVariant];
+
+function InfoItem({ label, value, variant }: { label: string; value: string; variant?: InfoVariant }) {
     return (
         <div>
-            <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-3 border-b border-gray-100 pb-2">
-                {title}
-            </h4>
-            {children}
+            <p className="mb-1 text-sm text-gray-500">{label}</p>
+            {variant ? <Badge value={value} variant={variant} /> : <p className="text-sm font-semibold text-gray-900 break-words">{value}</p>}
         </div>
     );
 }
 
-function InfoItem({ label, value, className = "" }: { label: string; value: string; className?: string }) {
+function Badge({ value, variant }: { value: string; variant: InfoVariant }) {
+    const classes = {
+        success: "bg-emerald-50 text-emerald-600",
+        purple: "bg-violet-50 text-violet-600",
+        blue: "bg-sky-50 text-sky-600",
+    }[variant];
+
+    return <span className={`inline-flex rounded-md px-2.5 py-1 text-xs font-semibold ${classes}`}>{value}</span>;
+}
+
+function TimelineItem({ icon, label, value, className }: { icon: ReactNode; label: string; value: string; className: string }) {
     return (
-        <div className={className}>
-            <p className="text-xs text-gray-500 mb-0.5">{label}</p>
-            <p className="text-sm text-gray-900 font-medium break-words">{value}</p>
+        <div className="flex items-center gap-4">
+            <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${className}`}>{icon}</span>
+            <div>
+                <p className="text-sm text-gray-500">{label}</p>
+                <p className="mt-1 text-sm font-semibold text-gray-900">{value}</p>
+            </div>
         </div>
     );
 }
