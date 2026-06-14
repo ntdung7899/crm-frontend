@@ -2,20 +2,25 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-    FiFileText,
-    FiImage,
+    FiDownload,
+    FiFile,
+    FiPaperclip,
     FiPlus,
     FiTrash2,
     FiUpload,
     FiX,
 } from "react-icons/fi";
+import { customersService } from "@/services/customers";
+import { filesService } from "@/services/files";
+import { useToast } from "@/components/ui/ToastProvider";
+import type { CustomerFileRef } from "@/types/api";
 import {
-    CustomerImage,
-    CustomerMediaStore,
     CustomerNote,
-    fileToDataUrl,
     generateId,
+    isImageFile,
     loadCustomerMedia,
+    normalizeCustomerFiles,
+    resolveFileUrl,
     saveCustomerMedia,
 } from "../utils/customerMedia";
 
@@ -24,120 +29,192 @@ interface CustomerMediaTabProps {
 }
 
 export function CustomerMediaTab({ customerId }: CustomerMediaTabProps) {
-    const [media, setMedia] = useState<CustomerMediaStore>({
-        workImages: [],
-        invoiceImages: [],
-        notes: [],
-    });
-    const [draftNote, setDraftNote] = useState("");
-    const [previewImage, setPreviewImage] = useState<CustomerImage | null>(null);
+    const toast = useToast();
+    const [files, setFiles] = useState<CustomerFileRef[]>([]);
+    const [isLoadingFiles, setIsLoadingFiles] = useState(true);
+    const [isUploading, setIsUploading] = useState(false);
+    const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
+    const [notes, setNotes] = useState<CustomerNote[]>([]);
+    const [draftNote, setDraftNote] = useState("");
+
+    // Load file đính kèm từ customer + ghi chú local
     useEffect(() => {
         if (!customerId) return;
-        setMedia(loadCustomerMedia(customerId));
+        setNotes(loadCustomerMedia(customerId).notes);
+
+        let disposed = false;
+        setIsLoadingFiles(true);
+        customersService
+            .getCustomer(customerId)
+            .then((res) => {
+                if (!disposed) setFiles(normalizeCustomerFiles(res.responseData?.file));
+            })
+            .catch(() => {
+                if (!disposed) setFiles([]);
+            })
+            .finally(() => {
+                if (!disposed) setIsLoadingFiles(false);
+            });
+
+        return () => {
+            disposed = true;
+        };
     }, [customerId]);
 
-    const persist = (next: CustomerMediaStore) => {
-        setMedia(next);
-        saveCustomerMedia(customerId, next);
-    };
-
-    const handleAddImages = async (
-        files: FileList | null,
-        type: "workImages" | "invoiceImages",
-    ) => {
-        if (!files || files.length === 0) return;
-        const newImages: CustomerImage[] = [];
-        for (const file of Array.from(files)) {
-            if (!file.type.startsWith("image/")) continue;
-            try {
-                const dataUrl = await fileToDataUrl(file);
-                newImages.push({
-                    id: generateId("img"),
-                    dataUrl,
-                    caption: file.name.replace(/\.[^.]+$/, ""),
-                    uploadedAt: new Date().toISOString(),
-                });
-            } catch {
-                // ignore single file failure
-            }
+    // Lưu danh sách file vào khách hàng qua PUT /customers/:id
+    const persistFiles = async (next: CustomerFileRef[]) => {
+        const previous = files;
+        setFiles(next);
+        try {
+            await customersService.updateCustomer(customerId, { file: next });
+        } catch (error) {
+            setFiles(previous);
+            toast.error("Lưu tài liệu thất bại", error instanceof Error ? error.message : "Vui lòng thử lại.");
+            throw error;
         }
-        if (newImages.length === 0) return;
-        persist({ ...media, [type]: [...newImages, ...media[type]] });
     };
 
-    const updateImageCaption = (
-        type: "workImages" | "invoiceImages",
-        id: string,
-        caption: string,
-    ) => {
-        persist({
-            ...media,
-            [type]: media[type].map((img) => (img.id === id ? { ...img, caption } : img)),
-        });
+    // Upload qua fileService rồi gắn vào customer.file
+    const handleUpload = async (fileList: FileList | null) => {
+        if (!fileList || fileList.length === 0) return;
+        setIsUploading(true);
+        try {
+            const uploaded: CustomerFileRef[] = [];
+            for (const file of Array.from(fileList)) {
+                const res = await filesService.uploadFile(file);
+                const url = res?.responseData?.original;
+                if (url) uploaded.push({ url, name: file.name });
+            }
+            if (uploaded.length === 0) {
+                toast.error("Tải lên thất bại", "Không nhận được đường dẫn file từ máy chủ.");
+                return;
+            }
+            await persistFiles([...files, ...uploaded]);
+            toast.success("Đã tải lên", `${uploaded.length} tài liệu đã được lưu cho khách hàng.`);
+        } catch {
+            // lỗi đã toast trong persistFiles / hoặc upload
+        } finally {
+            setIsUploading(false);
+        }
     };
 
-    const removeImage = (type: "workImages" | "invoiceImages", id: string) => {
-        persist({ ...media, [type]: media[type].filter((img) => img.id !== id) });
+    const removeFile = async (url: string) => {
+        try {
+            await persistFiles(files.filter((f) => f.url !== url));
+            toast.success("Đã xoá", "Tài liệu đã được gỡ khỏi khách hàng.");
+        } catch {
+            // đã toast
+        }
+    };
+
+    // ── Ghi chú (local) ──
+    const persistNotes = (next: CustomerNote[]) => {
+        setNotes(next);
+        const current = loadCustomerMedia(customerId);
+        saveCustomerMedia(customerId, { ...current, notes: next });
     };
 
     const addNote = () => {
         const content = draftNote.trim();
         if (!content) return;
-        const newNote: CustomerNote = {
-            id: generateId("note"),
-            content,
-            createdAt: new Date().toISOString(),
-        };
-        persist({ ...media, notes: [newNote, ...media.notes] });
+        persistNotes([{ id: generateId("note"), content, createdAt: new Date().toISOString() }, ...notes]);
         setDraftNote("");
     };
 
-    const removeNote = (id: string) => {
-        persist({ ...media, notes: media.notes.filter((n) => n.id !== id) });
-    };
+    const removeNote = (id: string) => persistNotes(notes.filter((n) => n.id !== id));
 
     return (
         <div className="space-y-6">
-            <ImageGallery
-                title="Hình ảnh công việc"
-                description="Lưu lại hình ảnh các công việc đã thực hiện cho khách hàng này."
-                icon={<FiImage className="h-4 w-4" />}
-                images={media.workImages}
-                onAdd={(files) => handleAddImages(files, "workImages")}
-                onUpdateCaption={(id, caption) =>
-                    updateImageCaption("workImages", id, caption)
-                }
-                onRemove={(id) => removeImage("workImages", id)}
-                onPreview={setPreviewImage}
-            />
-
-            <ImageGallery
-                title="Hoá đơn đã làm"
-                description="Tải lên ảnh hoá đơn / chứng từ đã lập cho khách hàng."
-                icon={<FiFileText className="h-4 w-4" />}
-                images={media.invoiceImages}
-                onAdd={(files) => handleAddImages(files, "invoiceImages")}
-                onUpdateCaption={(id, caption) =>
-                    updateImageCaption("invoiceImages", id, caption)
-                }
-                onRemove={(id) => removeImage("invoiceImages", id)}
-                onPreview={setPreviewImage}
-            />
-
-            <div className="bg-white border border-gray-200 rounded-lg">
-                <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                    <div>
-                        <h3 className="text-sm font-semibold text-gray-800">Ghi chú khách hàng</h3>
-                        <p className="text-xs text-gray-500">
-                            Lưu thông tin nhắc nhở, lịch sử trao đổi, lưu ý đặc biệt.
-                        </p>
+            {/* Tài liệu khách hàng */}
+            <div className="rounded-lg border border-gray-200 bg-white">
+                <div className="flex items-center justify-between border-b border-gray-100 p-4">
+                    <div className="flex items-center gap-2">
+                        <span className="text-primary-600"><FiPaperclip className="h-4 w-4" /></span>
+                        <div>
+                            <h3 className="text-sm font-semibold text-gray-800">Tài liệu khách hàng</h3>
+                            <p className="text-xs text-gray-500">Hình ảnh công việc, hoá đơn, chứng từ... đính kèm cho khách hàng.</p>
+                        </div>
                     </div>
-                    <span className="text-xs text-gray-500">{media.notes.length} ghi chú</span>
+                    <span className="text-xs text-gray-500">{files.length} tệp</span>
                 </div>
 
-                <div className="p-4 space-y-3">
-                    <div className="flex gap-2 items-start">
+                <div className="space-y-3 p-4">
+                    <UploadZone isUploading={isUploading} onSelect={handleUpload} />
+
+                    {isLoadingFiles ? (
+                        <p className="py-4 text-center text-xs text-gray-400">Đang tải tài liệu...</p>
+                    ) : files.length === 0 ? (
+                        <p className="py-4 text-center text-xs text-gray-400">Chưa có tài liệu nào.</p>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                            {files.map((file) => {
+                                const fullUrl = resolveFileUrl(file.url);
+                                const image = isImageFile(file.name || file.url);
+                                return (
+                                    <div key={file.url} className="group overflow-hidden rounded-lg border border-gray-200 bg-white">
+                                        <div className="relative aspect-square bg-gray-100">
+                                            {image ? (
+                                                // eslint-disable-next-line @next/next/no-img-element
+                                                <img
+                                                    src={fullUrl}
+                                                    alt={file.name}
+                                                    onClick={() => setPreviewUrl(fullUrl)}
+                                                    className="absolute inset-0 h-full w-full cursor-zoom-in object-cover transition-transform group-hover:scale-105"
+                                                />
+                                            ) : (
+                                                <a
+                                                    href={fullUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-gray-400 hover:text-primary-600"
+                                                >
+                                                    <FiFile className="h-8 w-8" />
+                                                    <span className="text-[10px]">Mở tệp</span>
+                                                </a>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={() => removeFile(file.url)}
+                                                className="absolute right-1 top-1 rounded-full bg-white/90 p-1 opacity-0 transition-all hover:bg-red-500 hover:text-white group-hover:opacity-100"
+                                                title="Xoá tệp"
+                                            >
+                                                <FiTrash2 className="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center justify-between gap-1 p-2">
+                                            <span className="truncate text-xs text-gray-700" title={file.name}>{file.name}</span>
+                                            <a
+                                                href={fullUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                download
+                                                className="shrink-0 text-gray-400 hover:text-primary-600"
+                                                title="Tải xuống"
+                                            >
+                                                <FiDownload className="h-3.5 w-3.5" />
+                                            </a>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Ghi chú khách hàng */}
+            <div className="rounded-lg border border-gray-200 bg-white">
+                <div className="flex items-center justify-between border-b border-gray-100 p-4">
+                    <div>
+                        <h3 className="text-sm font-semibold text-gray-800">Ghi chú khách hàng</h3>
+                        <p className="text-xs text-gray-500">Lưu thông tin nhắc nhở, lịch sử trao đổi, lưu ý đặc biệt.</p>
+                    </div>
+                    <span className="text-xs text-gray-500">{notes.length} ghi chú</span>
+                </div>
+
+                <div className="space-y-3 p-4">
+                    <div className="flex items-start gap-2">
                         <textarea
                             value={draftNote}
                             onChange={(e) => setDraftNote(e.target.value)}
@@ -149,47 +226,38 @@ export function CustomerMediaTab({ customerId }: CustomerMediaTabProps) {
                             }}
                             placeholder="Nhập ghi chú cho khách hàng... (Ctrl+Enter để lưu nhanh)"
                             rows={3}
-                            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100 resize-none"
+                            className="flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
                         />
                         <button
                             type="button"
                             onClick={addNote}
                             disabled={!draftNote.trim()}
-                            className="flex items-center gap-1.5 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white text-sm font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="flex items-center gap-1.5 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <FiPlus className="h-3.5 w-3.5" />
                             Lưu
                         </button>
                     </div>
 
-                    {media.notes.length === 0 ? (
-                        <p className="text-xs text-gray-400 text-center py-6">
-                            Chưa có ghi chú nào.
-                        </p>
+                    {notes.length === 0 ? (
+                        <p className="py-6 text-center text-xs text-gray-400">Chưa có ghi chú nào.</p>
                     ) : (
                         <div className="space-y-2">
-                            {media.notes.map((note) => (
-                                <div
-                                    key={note.id}
-                                    className="rounded-lg border border-gray-100 bg-gray-50/40 p-3 group"
-                                >
+                            {notes.map((note) => (
+                                <div key={note.id} className="group rounded-lg border border-gray-100 bg-gray-50/40 p-3">
                                     <div className="flex items-start justify-between gap-2">
-                                        <p className="flex-1 text-sm text-gray-700 whitespace-pre-line">
-                                            {note.content}
-                                        </p>
+                                        <p className="flex-1 whitespace-pre-line text-sm text-gray-700">{note.content}</p>
                                         <button
                                             type="button"
                                             onClick={() => removeNote(note.id)}
-                                            className="flex-shrink-0 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                            className="flex-shrink-0 text-gray-300 opacity-0 transition-opacity hover:text-red-500 group-hover:opacity-100"
                                             title="Xóa ghi chú"
                                         >
                                             <FiTrash2 className="h-4 w-4" />
                                         </button>
                                     </div>
                                     <p className="mt-1 text-[11px] text-gray-400">
-                                        {new Date(note.createdAt).toLocaleString("vi-VN", {
-                                            hour12: false,
-                                        })}
+                                        {new Date(note.createdAt).toLocaleString("vi-VN", { hour12: false })}
                                     </p>
                                 </div>
                             ))}
@@ -198,147 +266,63 @@ export function CustomerMediaTab({ customerId }: CustomerMediaTabProps) {
                 </div>
             </div>
 
-            {previewImage && (
-                <ImagePreviewModal
-                    image={previewImage}
-                    onClose={() => setPreviewImage(null)}
-                />
-            )}
+            {previewUrl && <ImagePreviewModal url={previewUrl} onClose={() => setPreviewUrl(null)} />}
         </div>
     );
 }
 
-interface ImageGalleryProps {
-    title: string;
-    description: string;
-    icon: React.ReactNode;
-    images: CustomerImage[];
-    onAdd: (files: FileList | null) => void;
-    onUpdateCaption: (id: string, caption: string) => void;
-    onRemove: (id: string) => void;
-    onPreview: (image: CustomerImage) => void;
-}
-
-function ImageGallery({
-    title,
-    description,
-    icon,
-    images,
-    onAdd,
-    onUpdateCaption,
-    onRemove,
-    onPreview,
-}: ImageGalleryProps) {
+function UploadZone({ isUploading, onSelect }: { isUploading: boolean; onSelect: (files: FileList | null) => void }) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [isDragging, setIsDragging] = useState(false);
 
     return (
-        <div className="bg-white border border-gray-200 rounded-lg">
-            <div className="flex items-center justify-between p-4 border-b border-gray-100">
-                <div className="flex items-center gap-2">
-                    <span className="text-primary-600">{icon}</span>
-                    <div>
-                        <h3 className="text-sm font-semibold text-gray-800">{title}</h3>
-                        <p className="text-xs text-gray-500">{description}</p>
-                    </div>
-                </div>
-                <span className="text-xs text-gray-500">{images.length} ảnh</span>
-            </div>
-
-            <div className="p-4 space-y-3">
-                <div
-                    onDragOver={(e) => {
-                        e.preventDefault();
-                        setIsDragging(true);
-                    }}
-                    onDragLeave={() => setIsDragging(false)}
-                    onDrop={(e) => {
-                        e.preventDefault();
-                        setIsDragging(false);
-                        onAdd(e.dataTransfer.files);
-                    }}
-                    onClick={() => inputRef.current?.click()}
-                    className={`cursor-pointer rounded-lg border-2 border-dashed py-4 text-center transition-colors ${
-                        isDragging
-                            ? "border-primary-400 bg-primary-50"
-                            : "border-gray-300 hover:border-primary-300 bg-gray-50/50"
-                    }`}
-                >
-                    <FiUpload className="mx-auto h-5 w-5 text-gray-400 mb-1" />
-                    <p className="text-xs text-gray-600">
-                        Kéo thả hoặc{" "}
-                        <span className="text-primary-600 font-medium">chọn ảnh để tải lên</span>
-                    </p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">JPG, PNG, WEBP — có thể chọn nhiều ảnh</p>
-                    <input
-                        ref={inputRef}
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={(e) => {
-                            onAdd(e.target.files);
-                            e.target.value = "";
-                        }}
-                        className="hidden"
-                    />
-                </div>
-
-                {images.length > 0 && (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                        {images.map((img) => (
-                            <div
-                                key={img.id}
-                                className="group rounded-lg border border-gray-200 overflow-hidden bg-white"
-                            >
-                                <div
-                                    onClick={() => onPreview(img)}
-                                    className="relative aspect-square bg-gray-100 cursor-zoom-in overflow-hidden"
-                                >
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                        src={img.dataUrl}
-                                        alt={img.caption}
-                                        className="absolute inset-0 w-full h-full object-cover transition-transform group-hover:scale-105"
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onRemove(img.id);
-                                        }}
-                                        className="absolute top-1 right-1 bg-white/90 hover:bg-red-500 hover:text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-all"
-                                        title="Xóa ảnh"
-                                    >
-                                        <FiTrash2 className="h-3 w-3" />
-                                    </button>
-                                </div>
-                                <div className="p-2">
-                                    <input
-                                        type="text"
-                                        value={img.caption}
-                                        onChange={(e) => onUpdateCaption(img.id, e.target.value)}
-                                        placeholder="Mô tả..."
-                                        className="w-full text-xs bg-transparent outline-none border-b border-transparent focus:border-primary-300 truncate"
-                                    />
-                                    <p className="mt-0.5 text-[10px] text-gray-400">
-                                        {new Date(img.uploadedAt).toLocaleDateString("vi-VN")}
-                                    </p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
+        <div
+            onDragOver={(e) => {
+                e.preventDefault();
+                setIsDragging(true);
+            }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={(e) => {
+                e.preventDefault();
+                setIsDragging(false);
+                onSelect(e.dataTransfer.files);
+            }}
+            onClick={() => !isUploading && inputRef.current?.click()}
+            className={`cursor-pointer rounded-lg border-2 border-dashed py-4 text-center transition-colors ${
+                isDragging ? "border-primary-400 bg-primary-50" : "border-gray-300 bg-gray-50/50 hover:border-primary-300"
+            } ${isUploading ? "pointer-events-none opacity-60" : ""}`}
+        >
+            {isUploading ? (
+                <span className="mx-auto mb-1 block h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-primary-600" />
+            ) : (
+                <FiUpload className="mx-auto mb-1 h-5 w-5 text-gray-400" />
+            )}
+            <p className="text-xs text-gray-600">
+                {isUploading ? (
+                    "Đang tải lên..."
+                ) : (
+                    <>
+                        Kéo thả hoặc <span className="font-medium text-primary-600">chọn tệp để tải lên</span>
+                    </>
                 )}
-            </div>
+            </p>
+            <p className="mt-0.5 text-[11px] text-gray-400">Ảnh, PDF, tài liệu — có thể chọn nhiều tệp</p>
+            <input
+                ref={inputRef}
+                type="file"
+                accept="image/*,.pdf,.doc,.docx,.xls,.xlsx"
+                multiple
+                onChange={(e) => {
+                    onSelect(e.target.files);
+                    e.target.value = "";
+                }}
+                className="hidden"
+            />
         </div>
     );
 }
 
-interface ImagePreviewModalProps {
-    image: CustomerImage;
-    onClose: () => void;
-}
-
-function ImagePreviewModal({ image, onClose }: ImagePreviewModalProps) {
+function ImagePreviewModal({ url, onClose }: { url: string; onClose: () => void }) {
     useEffect(() => {
         const handler = (e: KeyboardEvent) => {
             if (e.key === "Escape") onClose();
@@ -348,31 +332,18 @@ function ImagePreviewModal({ image, onClose }: ImagePreviewModalProps) {
     }, [onClose]);
 
     return (
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-            onClick={onClose}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
             <button
                 type="button"
                 onClick={onClose}
-                className="absolute top-4 right-4 text-white hover:bg-white/10 rounded-full p-2"
+                className="absolute right-4 top-4 rounded-full p-2 text-white hover:bg-white/10"
                 title="Đóng"
             >
                 <FiX className="h-5 w-5" />
             </button>
-            <div
-                className="relative max-w-5xl max-h-[90vh] w-full"
-                onClick={(e) => e.stopPropagation()}
-            >
+            <div className="relative max-h-[90vh] w-full max-w-5xl" onClick={(e) => e.stopPropagation()}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                    src={image.dataUrl}
-                    alt={image.caption}
-                    className="w-full h-auto max-h-[85vh] object-contain rounded-lg"
-                />
-                {image.caption && (
-                    <p className="text-center text-white text-sm mt-3">{image.caption}</p>
-                )}
+                <img src={url} alt="Xem trước" className="h-auto max-h-[85vh] w-full rounded-lg object-contain" />
             </div>
         </div>
     );

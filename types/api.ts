@@ -288,6 +288,14 @@ export interface CustomerApiRow {
   is_delete: boolean;
   customer_source_id: string | null;
   tags?: string[];
+  /** Tài liệu đính kèm. BE có thể trả về 1 object hoặc mảng. */
+  file?: CustomerFileRef[] | CustomerFileRef | null;
+}
+
+/** Tham chiếu file đính kèm của khách hàng (lưu qua PUT /customers/:id). */
+export interface CustomerFileRef {
+  url: string;
+  name: string;
 }
 
 export interface CreateCustomerPayload {
@@ -339,6 +347,8 @@ export interface UpdateCustomerPayload {
   full_name?: string;
   assigned_user_id?: string | null;
   is_active?: boolean;
+  /** Danh sách tài liệu đính kèm. */
+  file?: CustomerFileRef[];
 }
 
 export interface CustomerAssignedUserCustomerRef {
