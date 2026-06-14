@@ -61,7 +61,7 @@ export function CustomerGroupsTable({
                                 <tr key={group.id} className="transition-colors hover:bg-gray-50/70">
                                     <td className="px-5 py-5">
                                         <p className="font-semibold text-gray-900">{group.name}</p>
-                                        <span className="mt-2 inline-flex rounded-md bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-600">
+                                        <span className="mt-2 inline-flex rounded-md bg-primary-50 px-2.5 py-1 text-xs font-semibold text-primary-600">
                                             ID: {String(index + 1 + (currentPage - 1) * pageSize).padStart(3, "0")}
                                         </span>
                                     </td>

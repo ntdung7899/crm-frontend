@@ -62,7 +62,7 @@ export function UserTable({ users, userRolesByUser = {}, onUserClick, onUserEdit
                             <tr key={user.id} className="transition-colors hover:bg-gray-50/70">
                                 <td className="px-5 py-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white">
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-sm font-bold text-white">
                                             {getInitials(user.full_name)}
                                         </div>
                                         <div className="min-w-0">
@@ -134,7 +134,7 @@ function TableHeader({ label, field, onSort, sortField, sortDirection }: TableHe
 function RoleBadge({ role }: { role: string }) {
     const normalized = role.toLowerCase();
     const className = normalized.includes("owner")
-        ? "bg-violet-50 text-violet-600"
+        ? "bg-primary-50 text-primary-600"
         : normalized.includes("leader")
             ? "bg-sky-50 text-sky-600"
             : "bg-blue-50 text-blue-600";

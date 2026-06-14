@@ -54,7 +54,7 @@ export default function CustomerGroupsPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <StatCard icon={<UsersRound className="h-7 w-7" />} label="Tổng nhóm" value={groups.length} note="Nhóm" className="bg-violet-50 text-violet-600" />
+                <StatCard icon={<UsersRound className="h-7 w-7" />} label="Tổng nhóm" value={groups.length} note="Nhóm" className="bg-primary-50 text-primary-600" />
                 <StatCard icon={<Users className="h-7 w-7" />} label="Tổng khách hàng trong nhóm" value={totalCustomersInGroups} note="Khách hàng" className="bg-emerald-50 text-emerald-600" />
                 <StatCard icon={<UserPlus className="h-7 w-7" />} label="Nhóm chưa gán phụ trách" value={unassignedGroups} note="Nhóm" className="bg-amber-50 text-amber-600" />
                 <StatCard icon={<Briefcase className="h-7 w-7" />} label="Nhóm trống" value={emptyGroups} note="Nhóm" className="bg-sky-50 text-sky-600" />

@@ -211,6 +211,14 @@ let nextId = 100;
 const genId = (prefix: string) => `${prefix}${++nextId}`;
 
 const statusToUi = (status: AutomationStatus): AutomationFlow["trangThai"] => status === "paused" ? "inactive" : status;
+const TRIGGER_TYPE_TO_EVENT: Record<string, string> = {
+  oa_follow: "follow_oa",
+  message_received: "message",
+  abandoned_cart: "cart_abandon",
+  order_completed: "order_complete",
+  customer_birthday: "birthday",
+};
+
 const conditionResultFromLabel = (label?: string): ConditionResult => {
   if (label === "true" || label === "Có") return "true";
   if (label === "false" || label === "Không") return "false";
@@ -236,7 +244,7 @@ function toUiFlow(header: AutomationHeader, detail?: AutomationDetail): Automati
       y: node.position_y ?? 0,
       config: {
         ...(node.config ?? {}),
-        event: node.trigger_type ?? (node.config?.event as string | undefined),
+        event: (node.trigger_type ? TRIGGER_TYPE_TO_EVENT[node.trigger_type] : undefined) ?? (node.config?.event as string | undefined),
         action: node.action_type === "send_zalo_message" ? "send_zalo" : node.action_type ?? (node.config?.action as string | undefined),
         amount: node.delay_value?.toString() ?? (node.config?.amount as string | undefined),
         unit: node.delay_unit ?? (node.config?.unit as string | undefined),
@@ -274,7 +282,12 @@ function toApiBody(name: string, nodes: AutomationNode[], edges: AutomationEdge[
         node_type: node.type,
         name: node.label,
         trigger_type: node.type === "trigger"
-          ? event === "follow_oa" ? "zalo_follow" : event === "send_message" ? "zalo_message" : "customer_created"
+          ? event === "follow_oa" ? "oa_follow"
+            : event === "send_message" || event === "message" ? "message_received"
+            : event === "cart_abandon" ? "abandoned_cart"
+            : event === "order_complete" ? "order_completed"
+            : event === "birthday" ? "customer_birthday"
+            : "oa_follow"
           : null,
         action_type: node.type === "action" ? action === "create_task" ? "create_task" : "send_zalo_message" : null,
         delay_value: node.type === "delay" && Number.isFinite(amount) ? amount : undefined,

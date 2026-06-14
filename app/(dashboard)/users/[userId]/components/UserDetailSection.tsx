@@ -74,7 +74,7 @@ function InfoRow({ label, value, badge, muted, subtle }: { label: string; value:
 }
 
 function Badge({ value, variant }: { value: string; variant: "purple" | "success" }) {
-    const className = variant === "purple" ? "bg-violet-50 text-violet-600" : "bg-emerald-50 text-emerald-600";
+    const className = variant === "purple" ? "bg-primary-50 text-primary-600" : "bg-emerald-50 text-emerald-600";
     return (
         <span className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold ${className}`}>
             {variant === "success" && <span className="h-2 w-2 rounded-full bg-current" />}

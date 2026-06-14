@@ -45,7 +45,7 @@ export function ConversationRow({ conv, isActive, onClick }: ConversationRowProp
                         {conv.tags.map((tag) => (
                             <span
                                 key={tag}
-                                className="px-1.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 text-[10px] font-medium leading-none"
+                                className="px-1.5 py-0.5 rounded-full bg-primary-50 text-primary-600 text-[10px] font-medium leading-none"
                             >
                                 {tag}
                             </span>

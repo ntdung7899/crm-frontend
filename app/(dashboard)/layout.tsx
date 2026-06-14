@@ -58,7 +58,7 @@ export default function DashboardLayout({
       <OneSignalInitializer />
 
       {/* Block access on screens smaller than lg */}
-      <div className="flex lg:hidden h-dvh items-center justify-center bg-gradient-to-br from-indigo-950 to-indigo-900 p-8">
+      <div className="flex lg:hidden h-dvh items-center justify-center bg-gradient-to-br from-primary-950 to-primary-900 p-8">
         <div className="flex flex-col items-center text-center max-w-sm">
           {/* Icon container */}
           <div className="mb-6 flex h-24 w-24 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/20 shadow-xl">
@@ -79,8 +79,8 @@ export default function DashboardLayout({
           </div>
 
           {/* Badge */}
-          <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-indigo-500/20 px-3 py-1 text-xs font-medium text-indigo-300 ring-1 ring-indigo-500/30">
-            <span className="h-1.5 w-1.5 rounded-full bg-indigo-400" />
+          <span className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-primary-500/20 px-3 py-1 text-xs font-medium text-primary-300 ring-1 ring-primary-500/30">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary-400" />
             Khu vực quản trị
           </span>
 
