@@ -184,7 +184,7 @@ export function UserDetailPanel({ conversation, oaName, accessToken, onUpdated }
             {conversation.tags.map((tag) => (
               <span
                 key={tag}
-                className="px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-600 text-xs font-medium"
+                className="px-2.5 py-0.5 rounded-full bg-primary-50 text-primary-600 text-xs font-medium"
               >
                 {tag}
               </span>

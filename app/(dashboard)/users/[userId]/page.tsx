@@ -82,8 +82,8 @@ export default function UserDetailPage() {
                                     <p className="flex items-center gap-2"><Phone className="h-4 w-4" />{user.phone || "Chưa cập nhật"}</p>
                                 </div>
                                 <div className="mt-5 flex flex-wrap gap-3">
-                                    <Badge label={role} className="bg-violet-50 text-violet-600" />
-                                    <Badge label="Quản trị hệ thống" className="bg-violet-50 text-violet-600" />
+                                    <Badge label={role} className="bg-primary-50 text-primary-600" />
+                                    <Badge label="Quản trị hệ thống" className="bg-primary-50 text-primary-600" />
                                 </div>
                                 <div className="mt-5 flex items-center gap-2 text-sm text-gray-600">
                                     <span>Mã người dùng: {user.id}</span>
@@ -103,7 +103,7 @@ export default function UserDetailPage() {
                 <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                     <h2 className="mb-5 text-lg font-bold text-gray-900">Thao tác nhanh</h2>
                     <div className="grid grid-cols-2 gap-4">
-                        <QuickAction icon={<KeyRound className="h-5 w-5" />} label="Đặt lại mật khẩu" className="bg-violet-50 text-violet-600" />
+                        <QuickAction icon={<KeyRound className="h-5 w-5" />} label="Đặt lại mật khẩu" className="bg-primary-50 text-primary-600" />
                         <QuickAction icon={<Lock className="h-5 w-5" />} label="Khóa tài khoản" className="bg-amber-50 text-amber-600" />
                         <QuickAction icon={<Users className="h-5 w-5" />} label="Phân quyền" className="bg-sky-50 text-sky-600" />
                         <QuickAction icon={<Send className="h-5 w-5" />} label="Gửi thông báo" className="bg-emerald-50 text-emerald-600" />

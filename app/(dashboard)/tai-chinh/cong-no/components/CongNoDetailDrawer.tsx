@@ -21,7 +21,7 @@ const TABS = [
 
 const EMPTY_STATE = (
   <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-    <svg className="w-16 h-16 mb-3 text-indigo-300" fill="none" viewBox="0 0 64 64">
+    <svg className="w-16 h-16 mb-3 text-primary-300" fill="none" viewBox="0 0 64 64">
       <rect x="8" y="12" width="36" height="44" rx="3" fill="#e0e7ff" />
       <rect x="12" y="20" width="24" height="3" rx="1.5" fill="#a5b4fc" />
       <rect x="12" y="27" width="18" height="3" rx="1.5" fill="#a5b4fc" />

@@ -597,7 +597,7 @@ export function MarketingSection() {
           label="Tổng chiến dịch"
           value={campaigns.length}
           note="Tất cả chiến dịch đã tạo"
-          className="bg-indigo-50 text-indigo-600"
+          className="bg-primary-50 text-primary-600"
         />
         <StatCard
           icon={<FileText className="h-6 w-6" />}
@@ -619,7 +619,7 @@ export function MarketingSection() {
           value={approvedTemplates.length}
           note={`/ ${allTemplates.length} OA`}
           subNote={`Template ZBS trên các OA`}
-          className="bg-violet-50 text-violet-600"
+          className="bg-primary-50 text-primary-600"
         />
       </div>
 

@@ -280,7 +280,7 @@ export function TemplateHistorySection() {
                     label="Tổng tin"
                     value={stats.total}
                     note="Tổng số template đã gửi"
-                    className="bg-indigo-50 text-indigo-600"
+                    className="bg-primary-50 text-primary-600"
                 />
                 <StatCard
                     icon={<Send className="h-6 w-6" />}

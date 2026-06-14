@@ -131,14 +131,14 @@ function CustomerTableRow({ customer, onView, onEdit }: CustomerTableRowProps) {
     <tr className="transition-colors hover:bg-gray-50/70">
       <td className="px-5 py-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-xs font-bold text-white">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-xs font-bold text-white">
             {getInitials(customer.customerName)}
           </div>
           <span className="text-sm font-semibold text-gray-900">{customer.customerName}</span>
         </div>
       </td>
       <td className="px-5 py-4 text-sm font-medium text-gray-700">{phone}</td>
-      <td className="px-5 py-4"><Badge className="bg-violet-50 text-violet-600" label={firstGroup} /></td>
+      <td className="px-5 py-4"><Badge className="bg-primary-50 text-primary-600" label={firstGroup} /></td>
       <td className="px-5 py-4"><Badge className={sourceBadgeClass(source)} label={source} /></td>
       <td className="px-5 py-4">
         <span className="inline-flex items-center gap-1.5 rounded-md bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
@@ -181,6 +181,6 @@ function sourceBadgeClass(source: string) {
   if (normalized.includes("zalo")) return "bg-sky-50 text-sky-600";
   if (normalized.includes("website")) return "bg-emerald-50 text-emerald-600";
   if (normalized.includes("facebook")) return "bg-blue-50 text-blue-600";
-  if (normalized.includes("giới") || normalized.includes("gioi")) return "bg-violet-50 text-violet-600";
+  if (normalized.includes("giới") || normalized.includes("gioi")) return "bg-primary-50 text-primary-600";
   return "bg-gray-100 text-gray-600";
 }

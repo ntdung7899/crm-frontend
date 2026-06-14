@@ -13,6 +13,14 @@ const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   draft: { label: "Nháp", cls: "bg-yellow-100 text-yellow-700" },
 };
 
+const TRIGGER_LABELS: Record<string, { label: string; cls: string }> = {
+  oa_follow: { label: "Theo dõi OA", cls: "bg-blue-50 text-blue-700" },
+  message_received: { label: "Nhận tin nhắn", cls: "bg-indigo-50 text-indigo-700" },
+  abandoned_cart: { label: "Bỏ giỏ hàng", cls: "bg-orange-50 text-orange-700" },
+  order_completed: { label: "Hoàn thành đơn", cls: "bg-emerald-50 text-emerald-700" },
+  customer_birthday: { label: "Sinh nhật KH", cls: "bg-pink-50 text-pink-700" },
+};
+
 const FILTER_TABS = [
   { id: "all" as const, label: "Tất cả" },
   { id: "active" as const, label: "Đang hoạt động" },

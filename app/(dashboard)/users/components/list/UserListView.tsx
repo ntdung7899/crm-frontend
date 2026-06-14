@@ -75,11 +75,11 @@ export function UserListView() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-6">
-                <StatCard icon={<Users className="h-6 w-6" />} label="Tổng người dùng" value={filterCounts.all || 0} note="Tài khoản" className="bg-violet-50 text-violet-600" />
+                <StatCard icon={<Users className="h-6 w-6" />} label="Tổng người dùng" value={filterCounts.all || 0} note="Tài khoản" className="bg-primary-50 text-primary-600" />
                 <StatCard icon={<CheckCircle2 className="h-6 w-6" />} label="Đang hoạt động" value={filterCounts.active || 0} note="Tài khoản" className="bg-emerald-50 text-emerald-600" />
                 <StatCard icon={<UserX className="h-6 w-6" />} label="Ngưng hoạt động" value={filterCounts.inactive || 0} note="Tài khoản" className="bg-orange-50 text-orange-600" />
                 <StatCard icon={<ShieldCheck className="h-6 w-6" />} label="Owner" value={roleCounts.owner} note="Tài khoản" className="bg-sky-50 text-sky-600" />
-                <StatCard icon={<UserCheck className="h-6 w-6" />} label="Leader" value={roleCounts.leader} note="Tài khoản" className="bg-violet-50 text-violet-600" />
+                <StatCard icon={<UserCheck className="h-6 w-6" />} label="Leader" value={roleCounts.leader} note="Tài khoản" className="bg-primary-50 text-primary-600" />
                 <StatCard icon={<Users className="h-6 w-6" />} label="Worker" value={roleCounts.worker} note="Tài khoản" className="bg-blue-50 text-blue-600" />
             </div>
 

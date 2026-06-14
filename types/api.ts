@@ -631,8 +631,96 @@ export interface FilesListResponse {
 }
 
 export interface FileUploadResponse {
-  filePath: string;
   fileName: string;
+  contentType?: string;
+  /** Đường dẫn tương đối của file đã upload, ví dụ "/images/file-xxx.png" */
+  original: string;
+}
+
+// ── Newsfeed / Posts ────────────────────────────────────────────────
+export interface PostsEnvelope<T> {
+  status: string;
+  responseData: T;
+  message?: string;
+  message_en?: string;
+  timeStamp?: string;
+  violations?: Record<string, string[]> | null;
+}
+
+export interface PostRows<T> {
+  rows: T[];
+  count: number;
+}
+
+export interface PostAuthorApiRow {
+  id: string;
+  full_name: string;
+  avatar: string | null;
+}
+
+export type ReactionTypeApi = "LIKE" | "LOVE" | "HAHA" | "WOW" | "SAD" | "ANGRY";
+
+export interface PostInteractionApiRow {
+  id: string;
+  post_id?: string;
+  user_id: string;
+  interaction_type: "REACTION" | "COMMENT";
+  reaction_type?: ReactionTypeApi | null;
+  content?: string | null;
+  parent_comment_id?: string | null;
+  status?: string;
+  created_at: string | null;
+  updated_at?: string | null;
+  user?: PostAuthorApiRow | null;
+}
+
+export interface PostApiRow {
+  id: string;
+  title: string | null;
+  content: string;
+  thumbnail_url: string | null;
+  media_urls: string[] | null;
+  status: "active" | "inactive";
+  created_by: string;
+  created_at: string | null;
+  updated_at: string | null;
+  created_by_user?: PostAuthorApiRow | null;
+  post_interactions?: PostInteractionApiRow[];
+}
+
+export interface CreatePostPayload {
+  title?: string;
+  content: string;
+  thumbnail_url?: string | null;
+  media_urls?: string[];
+}
+
+export interface UpdatePostPayload {
+  title?: string;
+  content?: string;
+  thumbnail_url?: string | null;
+  media_urls?: string[];
+  status?: "active" | "inactive";
+}
+
+export interface CreatePostInteractionPayload {
+  interaction_type: "REACTION" | "COMMENT";
+  /** Bắt buộc khi interaction_type = "REACTION" */
+  reaction_type?: ReactionTypeApi;
+  /** Bắt buộc khi interaction_type = "COMMENT" */
+  content?: string;
+  /** ID comment cha khi trả lời bình luận */
+  parent_comment_id?: string;
+}
+
+export interface DeletePostInteractionPayload {
+  interaction_id?: string;
+}
+
+export interface UpdatePostInteractionPayload {
+  interaction_id: string;
+  reaction_type?: ReactionTypeApi;
+  content?: string;
 }
 
 // ── Logs ───────────────────────────────────────────────────────────
@@ -723,4 +811,13 @@ export type BulkUpdateUserHistoryResponse = ApiEnvelope<number>;
 export type GetFilesResponse = ApiEnvelope<FilesListResponse>;
 export type UploadFileResponse = ApiEnvelope<FileUploadResponse>;
 export type DeleteFileResponse = ApiEnvelope<null>;
+export type GetPostsResponse = PostsEnvelope<PostRows<PostApiRow>>;
+export type GetPostResponse = PostsEnvelope<PostApiRow>;
+export type CreatePostResponse = PostsEnvelope<PostApiRow>;
+export type UpdatePostResponse = PostsEnvelope<PostApiRow>;
+export type DeletePostResponse = PostsEnvelope<null>;
+export type GetPostInteractionsResponse = PostsEnvelope<PostRows<PostInteractionApiRow>>;
+export type CreatePostInteractionResponse = PostsEnvelope<PostInteractionApiRow>;
+export type UpdatePostInteractionResponse = PostsEnvelope<PostInteractionApiRow>;
+export type DeletePostInteractionResponse = PostsEnvelope<null>;
 export type GetLogsResponse = ApiEnvelope<LogsResponse>;

@@ -47,7 +47,7 @@ export function ZaloAutoConfigPanel({
                                 <td className="px-4 py-3 font-semibold text-gray-800">{cfg.oaName}</td>
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-full bg-indigo-700 flex items-center justify-center flex-shrink-0 text-white text-xs font-bold">
+                                        <div className="w-8 h-8 rounded-full bg-primary-700 flex items-center justify-center flex-shrink-0 text-white text-xs font-bold">
                                             {cfg.createdBy.charAt(0)}
                                         </div>
                                         <div>

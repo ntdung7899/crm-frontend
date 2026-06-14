@@ -12,6 +12,7 @@ import {
   FiSettings,
   FiUser,
   FiBell,
+  FiFileText,
   FiLogOut,
   FiLink,
   FiDollarSign,
@@ -41,9 +42,7 @@ interface NavSection {
 
 const sections: NavSection[] = [
   {
-    items: [
-      { name: "Bảng điều khiển", href: "/", icon: FiHome },
-    ],
+    items: [{ name: "Bảng điều khiển", href: "/", icon: FiHome }],
   },
   {
     label: "KHÁCH HÀNG",
@@ -55,15 +54,15 @@ const sections: NavSection[] = [
   },
   {
     label: "CÔNG VIỆC",
-    items: [
-      { name: "Công việc", href: "/tasks", icon: FiCheckSquare },
-    ],
+    items: [{ name: "Công việc", href: "/tasks", icon: FiCheckSquare }],
   },
   {
     label: "THÔNG BÁO",
-    items: [
-      { name: "Thông báo", href: "/notifications", icon: FiBell },
-    ],
+    items: [{ name: "Thông báo", href: "/notifications", icon: FiBell }],
+  },
+  {
+    label: "BẢNG TIN",
+    items: [{ name: "Bảng tin", href: "/newsfeed", icon: FiFileText }],
   },
   {
     label: "ZALO OA",
@@ -99,9 +98,7 @@ const sections: NavSection[] = [
   },
   {
     label: "CÀI ĐẶT",
-    items: [
-      { name: "Cài đặt", href: "/settings", icon: FiSettings },
-    ],
+    items: [{ name: "Cài đặt", href: "/settings", icon: FiSettings }],
   },
 ];
 
@@ -114,18 +111,26 @@ function isPathMatch(pathname: string, href: string): boolean {
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-function getActiveChildHref(pathname: string, children: NavChild[]): string | null {
+function getActiveChildHref(
+  pathname: string,
+  children: NavChild[],
+): string | null {
   const sorted = [...children].sort((a, b) => b.href.length - a.href.length);
   return sorted.find((c) => isPathMatch(pathname, c.href))?.href ?? null;
 }
 
 function isGroupRouteActive(pathname: string, item: NavItem): boolean {
   const matchesSelf = item.href ? isPathMatch(pathname, item.href) : false;
-  const matchesChild = item.children ? Boolean(getActiveChildHref(pathname, item.children)) : false;
+  const matchesChild = item.children
+    ? Boolean(getActiveChildHref(pathname, item.children))
+    : false;
   return matchesSelf || matchesChild;
 }
 
-function getBestFlatMatch(pathname: string, allSections: NavSection[]): string | null {
+function getBestFlatMatch(
+  pathname: string,
+  allSections: NavSection[],
+): string | null {
   const allHrefs: string[] = [];
   for (const section of allSections) {
     for (const item of section.items) {
@@ -179,7 +184,8 @@ export function Sidebar({ isOpen }: SidebarProps) {
       try {
         await authService.logout();
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Đăng xuất thất bại";
+        const message =
+          error instanceof Error ? error.message : "Đăng xuất thất bại";
         toast.warning("Không thể xác nhận đăng xuất", message);
       } finally {
         clearAuthSession();
@@ -188,8 +194,10 @@ export function Sidebar({ isOpen }: SidebarProps) {
     });
   };
 
-  const activeClass = "bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-900/40";
-  const inactiveClass = "text-indigo-200 hover:bg-indigo-800/60 hover:text-white";
+  const activeClass =
+    "bg-gradient-to-r from-primary-500 to-primary-700 text-white shadow-lg shadow-primary-900/30";
+  const inactiveClass =
+    "text-primary-100 hover:bg-primary-800/60 hover:text-white";
 
   const bestFlatMatch = getBestFlatMatch(pathname, sections);
 
@@ -238,11 +246,16 @@ export function Sidebar({ isOpen }: SidebarProps) {
           >
             <Icon className="h-5 w-5 shrink-0" />
             <span className="flex-1 truncate text-left">{item.name}</span>
-            <FiChevronDown className={cn("h-4 w-4 shrink-0 transition-transform", isExpanded && "rotate-180")} />
+            <FiChevronDown
+              className={cn(
+                "h-4 w-4 shrink-0 transition-transform",
+                isExpanded && "rotate-180",
+              )}
+            />
           </button>
 
           {isExpanded && (
-            <div className="mt-1 ml-4 space-y-0.5 border-l border-indigo-700/40 pl-4">
+            <div className="mt-1 ml-4 space-y-0.5 border-l border-primary-700/40 pl-4">
               {item.children.map((child) => {
                 const isChildActive = activeChildHref === child.href;
                 return (
@@ -253,7 +266,7 @@ export function Sidebar({ isOpen }: SidebarProps) {
                       "flex items-center rounded-lg px-3 py-2 text-sm transition-colors",
                       isChildActive
                         ? activeClass + " font-medium"
-                        : "text-indigo-300 hover:bg-indigo-800/60 hover:text-white",
+                        : "text-primary-100/80 hover:bg-primary-800/60 hover:text-white",
                     )}
                   >
                     <span className="truncate">{child.name}</span>
@@ -275,12 +288,18 @@ export function Sidebar({ isOpen }: SidebarProps) {
         title={!isOpen ? item.name : undefined}
         className={cn(
           "flex items-center text-sm font-medium rounded-lg transition-colors",
-          isOpen ? "gap-3 px-4 py-2.5" : "mx-auto h-10 w-10 justify-center rounded-xl",
+          isOpen
+            ? "gap-3 px-4 py-2.5"
+            : "mx-auto h-10 w-10 justify-center rounded-xl",
           isActive ? activeClass : inactiveClass,
         )}
       >
         <Icon className="h-5 w-5 shrink-0" />
-        {isOpen ? <span className="truncate">{item.name}</span> : <span className="sr-only">{item.name}</span>}
+        {isOpen ? (
+          <span className="truncate">{item.name}</span>
+        ) : (
+          <span className="sr-only">{item.name}</span>
+        )}
       </Link>
     );
   };
@@ -289,28 +308,55 @@ export function Sidebar({ isOpen }: SidebarProps) {
     <aside
       aria-label="Thanh điều hướng"
       className={cn(
-        "flex h-full min-h-0 flex-col overflow-hidden bg-gradient-to-b from-indigo-950 to-[#1a1145] transition-[width] duration-300",
+        "flex h-full min-h-0 flex-col overflow-hidden bg-gradient-to-b from-primary-950 to-primary-900 transition-[width] duration-300",
         isOpen ? "w-64" : "w-16",
       )}
     >
-      <div className={cn("flex h-16 shrink-0 items-center border-b border-indigo-800/40", isOpen ? "justify-between px-5" : "justify-center")}>
+      <div
+        className={cn(
+          "flex h-16 shrink-0 items-center border-b border-primary-800/40",
+          isOpen ? "justify-between px-5" : "justify-center",
+        )}
+      >
         {isOpen ? (
-          <Image src="/logo.png" alt="CRM Logo" width={120} height={36} className="object-contain brightness-0 invert" priority />
+          <Image
+            src="/logo.png"
+            alt="CRM Logo"
+            width={120}
+            height={36}
+            className="object-contain"
+            priority
+          />
         ) : (
-          <Image src="/logo.png" alt="CRM" width={28} height={28} className="object-contain brightness-0 invert" priority />
+          <Image
+            src="/logo.png"
+            alt="CRM"
+            width={28}
+            height={28}
+            className="object-contain"
+            priority
+          />
         )}
       </div>
 
-      <nav className={cn("sidebar-scroll min-h-0 flex-1 overflow-y-auto py-4", isOpen ? "px-3" : "px-1")}>
+      <nav
+        className={cn(
+          "sidebar-scroll min-h-0 flex-1 overflow-y-auto py-4",
+          isOpen ? "px-3" : "px-1",
+        )}
+      >
         {sections.map((section, sectionIdx) => (
-          <div key={section.label || sectionIdx} className={sectionIdx > 0 ? "mt-5" : ""}>
+          <div
+            key={section.label || sectionIdx}
+            className={sectionIdx > 0 ? "mt-5" : ""}
+          >
             {section.label && isOpen && (
-              <p className="mb-2 px-4 text-[11px] font-bold uppercase tracking-widest text-indigo-400/70">
+              <p className="mb-2 px-4 text-[11px] font-bold uppercase tracking-widest text-primary-200/70">
                 {section.label}
               </p>
             )}
             {!isOpen && sectionIdx > 0 && (
-              <div className="mx-2 mb-2 border-t border-indigo-800/40" />
+              <div className="mx-2 mb-2 border-t border-primary-800/40" />
             )}
             <div className="space-y-0.5">
               {section.items.map(renderNavItem)}
@@ -319,7 +365,12 @@ export function Sidebar({ isOpen }: SidebarProps) {
         ))}
       </nav>
 
-      <div className={cn("shrink-0 border-t border-indigo-800/40 pb-4 pt-3", isOpen ? "px-3" : "px-1")}>
+      <div
+        className={cn(
+          "shrink-0 border-t border-primary-800/40 pb-4 pt-3",
+          isOpen ? "px-3" : "px-1",
+        )}
+      >
         <button
           type="button"
           onClick={handleLogout}
@@ -328,13 +379,17 @@ export function Sidebar({ isOpen }: SidebarProps) {
           aria-label="Đăng xuất"
           className={cn(
             "flex w-full items-center rounded-lg text-sm font-medium transition-colors",
-            isOpen ? "gap-3 px-4 py-2.5" : "mx-auto h-10 w-10 justify-center rounded-xl",
-            "text-indigo-200 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-60",
+            isOpen
+              ? "gap-3 px-4 py-2.5"
+              : "mx-auto h-10 w-10 justify-center rounded-xl",
+            "text-primary-100 hover:bg-red-500/20 hover:text-red-300 disabled:opacity-60",
           )}
         >
           <FiLogOut className="h-5 w-5 shrink-0" />
           {isOpen ? (
-            <span className="truncate">{isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}</span>
+            <span className="truncate">
+              {isLoggingOut ? "Đang đăng xuất..." : "Đăng xuất"}
+            </span>
           ) : (
             <span className="sr-only">Đăng xuất</span>
           )}

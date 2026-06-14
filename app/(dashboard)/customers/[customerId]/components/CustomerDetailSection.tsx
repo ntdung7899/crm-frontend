@@ -71,7 +71,7 @@ export function CustomerDetailSection({ customer, onEdit }: CustomerDetailSectio
                     <h3 className="text-sm font-bold uppercase tracking-wide text-gray-900">Mốc thời gian</h3>
                 </div>
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    <TimelineItem icon={<Calendar className="h-5 w-5" />} label="Ngày tạo" value={formatDateVN(customer.createdDate).replace("\n", " ")} className="bg-violet-50 text-violet-600" />
+                    <TimelineItem icon={<Calendar className="h-5 w-5" />} label="Ngày tạo" value={formatDateVN(customer.createdDate).replace("\n", " ")} className="bg-primary-50 text-primary-600" />
                     <TimelineItem icon={<Clock className="h-5 w-5" />} label="Cập nhật gần nhất" value={customer.lastContactDate ? formatDateVN(customer.lastContactDate).replace("\n", " ") : "Chưa có dữ liệu"} className="bg-sky-50 text-sky-600" />
                     <TimelineItem icon={<MessageSquare className="h-5 w-5" />} label="Tương tác gần nhất" value="Chưa có dữ liệu" className="bg-emerald-50 text-emerald-600" />
                     <TimelineItem icon={<ShieldCheck className="h-5 w-5" />} label="Chăm sóc gần nhất" value="Chưa có dữ liệu" className="bg-amber-50 text-amber-600" />
@@ -127,7 +127,7 @@ function InfoItem({ label, value, variant }: { label: string; value: string; var
 function Badge({ value, variant }: { value: string; variant: InfoVariant }) {
     const classes = {
         success: "bg-emerald-50 text-emerald-600",
-        purple: "bg-violet-50 text-violet-600",
+        purple: "bg-primary-50 text-primary-600",
         blue: "bg-sky-50 text-sky-600",
     }[variant];
 

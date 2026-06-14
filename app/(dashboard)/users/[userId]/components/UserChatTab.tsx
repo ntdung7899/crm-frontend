@@ -36,7 +36,7 @@ function MessageBubble({
         <div
           className={`px-4 py-2 rounded-2xl text-sm leading-relaxed break-words whitespace-pre-wrap ${
             isMine
-              ? "bg-indigo-600 text-white rounded-br-sm"
+              ? "bg-primary-600 text-white rounded-br-sm"
               : "bg-gray-100 text-gray-800 rounded-bl-sm"
           } ${isOptimistic ? "opacity-70" : ""}`}
         >
@@ -82,7 +82,7 @@ export function UserChatTab({ userId, userName }: UserChatTabProps) {
     <div className="flex flex-col h-[600px] bg-white rounded-xl border border-gray-200 overflow-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 px-5 py-3 border-b border-gray-100 bg-gray-50 shrink-0">
-        <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-semibold text-sm">
+        <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-semibold text-sm">
           {userName.charAt(0).toUpperCase() || "U"}
         </div>
         <div>
@@ -95,7 +95,7 @@ export function UserChatTab({ userId, userName }: UserChatTabProps) {
       <div className="flex-1 overflow-y-auto px-5 py-4 space-y-1">
         {isLoading ? (
           <div className="flex items-center justify-center h-full">
-            <div className="w-6 h-6 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+            <div className="w-6 h-6 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
           </div>
         ) : messages.length === 0 ? (
           <div className="flex items-center justify-center h-full text-sm text-gray-400">
@@ -117,7 +117,7 @@ export function UserChatTab({ userId, userName }: UserChatTabProps) {
       <div className="shrink-0 border-t border-gray-100 px-4 py-3 bg-white">
         <div className="flex items-end gap-3">
           <textarea
-            className="flex-1 resize-none rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 transition max-h-32 min-h-[42px]"
+            className="flex-1 resize-none rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-400 transition max-h-32 min-h-[42px]"
             rows={1}
             placeholder="Nhập tin nhắn... (Enter để gửi, Shift+Enter xuống dòng)"
             value={inputText}
@@ -128,7 +128,7 @@ export function UserChatTab({ userId, userName }: UserChatTabProps) {
           <button
             onClick={sendMessage}
             disabled={!inputText.trim() || isSending || isLoading}
-            className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-600 text-white hover:bg-indigo-700 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+            className="flex items-center justify-center w-10 h-10 rounded-xl bg-primary-600 text-white hover:bg-primary-700 active:scale-95 transition disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
             title="Gửi tin nhắn"
           >
             <FiSend size={17} />

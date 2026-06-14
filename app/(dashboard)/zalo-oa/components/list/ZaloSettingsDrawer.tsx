@@ -46,7 +46,7 @@ export function ZaloSettingsDrawer({ settingsOpen, onClose, connections, onAddCo
                             key={conn.id}
                             className="flex items-start gap-3 px-5 py-3.5 hover:bg-gray-50 transition-colors"
                         >
-                            <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-indigo-100 border border-indigo-200 flex items-center justify-center text-indigo-700 font-bold text-sm">
+                            <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0 bg-primary-100 border border-primary-200 flex items-center justify-center text-primary-700 font-bold text-sm">
                                 {conn.avatar ? (
                                     <Image
                                         src={conn.avatar}

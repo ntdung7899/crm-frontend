@@ -1,7 +1,7 @@
 export type AutomationStatus = "draft" | "active" | "paused";
 export type ApiNodeType = "trigger" | "condition" | "action" | "delay" | "end";
 export type DelayUnit = "minute" | "hour" | "day" | "week";
-export type TriggerType = "customer_created" | "zalo_follow" | "zalo_message";
+export type TriggerType = "oa_follow" | "message_received" | "abandoned_cart" | "order_completed" | "customer_birthday";
 export type ActionType = "send_zalo_message" | "create_task";
 export type ConditionResult = "default" | "true" | "false" | null;
 

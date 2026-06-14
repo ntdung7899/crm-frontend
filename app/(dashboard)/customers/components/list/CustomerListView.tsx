@@ -65,7 +65,7 @@ export function CustomerListView({ onCountChange }: CustomerListViewProps) {
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <StatCard icon={<Users className="h-7 w-7" />} label="Tổng khách hàng" value={totalCustomers} note="Tất cả thời gian" gradient="from-indigo-500 to-violet-600" />
+                <StatCard icon={<Users className="h-7 w-7" />} label="Tổng khách hàng" value={totalCustomers} note="Tất cả thời gian" gradient="from-primary-500 to-primary-700" />
                 <StatCard icon={<UserPlus className="h-7 w-7" />} label="Khách hàng mới hôm nay" value={todayCustomers} note={new Date().toLocaleDateString("vi-VN")} gradient="from-emerald-400 to-green-600" />
                 <StatCard icon={<UserCheck className="h-7 w-7" />} label="Chưa phân công" value={unassignedCustomers} note="Chưa có người phụ trách" gradient="from-orange-400 to-orange-600" />
                 <StatCard icon={<Star className="h-7 w-7" />} label="Khách hàng tiềm năng" value={potentialCustomers} note={`${potentialPercent}% tổng khách hàng`} gradient="from-sky-400 to-blue-600" />

@@ -120,7 +120,7 @@ export function Header({ isSidebarOpen, onToggleSidebar }: HeaderProps) {
             type="button"
             onClick={onToggleSidebar}
             aria-label={isSidebarOpen ? "Thu gọn thanh bên" : "Mở rộng thanh bên"}
-            className="rounded-lg p-2 text-gray-500 hover:bg-indigo-50 hover:text-indigo-600 transition-colors"
+            className="rounded-lg p-2 text-gray-500 hover:bg-primary-50 hover:text-primary-600 transition-colors"
           >
             <FiMenu className="h-5 w-5" />
           </button>

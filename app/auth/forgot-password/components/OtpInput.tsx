@@ -70,7 +70,7 @@ export function OtpInput({ value, onChange, disabled }: OtpInputProps) {
                     onChange={(e) => handleChange(i, e)}
                     onKeyDown={(e) => handleKeyDown(i, e)}
                     onFocus={(e) => e.target.select()}
-                    className="h-12 w-11 rounded-lg border border-gray-200 bg-gray-50 text-center text-lg font-bold text-indigo-700 caret-transparent focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/25 disabled:opacity-50 transition"
+                    className="h-12 w-11 rounded-lg border border-gray-200 bg-gray-50 text-center text-lg font-bold text-primary-700 caret-transparent focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/25 disabled:opacity-50 transition"
                 />
             ))}
         </div>

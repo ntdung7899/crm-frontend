@@ -45,10 +45,10 @@ export function RegisterFormView({
     ];
 
     return (
-        <div className="relative min-h-screen overflow-hidden bg-indigo-950">
+        <div className="relative min-h-screen overflow-hidden bg-primary-950">
             {/* background blobs */}
             <div className="pointer-events-none absolute inset-0">
-                <div className="absolute -top-40 -left-40 h-[600px] w-[600px] rounded-full bg-indigo-700/20 blur-3xl" />
+                <div className="absolute -top-40 -left-40 h-[600px] w-[600px] rounded-full bg-primary-700/20 blur-3xl" />
                 <div className="absolute -bottom-32 -right-32 h-[500px] w-[500px] rounded-full bg-teal-600/15 blur-3xl" />
             </div>
 
@@ -63,9 +63,9 @@ export function RegisterFormView({
                             </span>
                             <h1 className="mt-5 text-4xl font-bold leading-tight tracking-tight text-white">
                                 Bắt đầu hành trình<br />
-                                <span className="text-indigo-300">quản lý</span> chuyên nghiệp.
+                                <span className="text-primary-300">quản lý</span> chuyên nghiệp.
                             </h1>
-                            <p className="mt-4 max-w-md text-base leading-relaxed text-indigo-200/70">
+                            <p className="mt-4 max-w-md text-base leading-relaxed text-primary-200/70">
                                 Tạo tài khoản và trải nghiệm hệ thống CRM toàn diện ngay hôm nay.
                             </p>
                         </div>
@@ -75,7 +75,7 @@ export function RegisterFormView({
                                 "Hỗ trợ nhập liệu hàng loạt từ Excel",
                                 "Báo cáo & thống kê tức thì",
                             ].map((text) => (
-                                <div key={text} className="flex items-center gap-3 text-sm text-indigo-200/80">
+                                <div key={text} className="flex items-center gap-3 text-sm text-primary-200/80">
                                     <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-500/20 text-teal-400">
                                         <svg viewBox="0 0 12 12" fill="currentColor" className="h-3 w-3">
                                             <path d="M10 3L5 8.5 2 5.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
@@ -92,7 +92,7 @@ export function RegisterFormView({
                         <div className="rounded-xl bg-white px-8 py-10">
                             {/* Logo */}
                             <div className="mb-6 flex justify-center">
-                                <Image src="/logo.png" alt="CRM Logo" width={130} height={40} className="object-contain" priority />
+                                <Image src="/logo.jpg" alt="CRM Logo" width={130} height={40} className="object-contain" priority />
                             </div>
 
                             <form className="mt-8 space-y-4" onSubmit={handleSubmit}>
@@ -108,7 +108,7 @@ export function RegisterFormView({
                                                 onChange={(e) => handleInputChange(key, e.target.value)}
                                                 autoComplete={autoComplete}
                                                 disabled={isPending}
-                                                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-60 transition"
+                                                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:opacity-60 transition"
                                             />
                                         </div>
                                         {errors[key] && <p className="mt-1 text-xs text-red-500">{errors[key]}</p>}
@@ -127,7 +127,7 @@ export function RegisterFormView({
                                             onChange={(e) => handleInputChange("password", e.target.value)}
                                             autoComplete="new-password"
                                             disabled={isPending}
-                                            className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-11 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-60 transition"
+                                            className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-11 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:opacity-60 transition"
                                         />
                                         <button
                                             type="button"
@@ -144,7 +144,7 @@ export function RegisterFormView({
                                 <button
                                     type="submit"
                                     disabled={isPending || !canSubmit}
-                                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-60 transition mt-2"
+                                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-60 transition mt-2"
                                 >
                                     {isPending ? (
                                         <Spinner size="sm" className="border-2 border-white/40 border-t-white" />
@@ -156,7 +156,7 @@ export function RegisterFormView({
 
                                 <p className="text-center text-sm text-gray-500">
                                     Đã có tài khoản?{" "}
-                                    <Link href="/auth/login" className="font-semibold text-indigo-600 hover:text-indigo-700">
+                                    <Link href="/auth/login" className="font-semibold text-primary-600 hover:text-primary-700">
                                         Đăng nhập
                                     </Link>
                                 </p>

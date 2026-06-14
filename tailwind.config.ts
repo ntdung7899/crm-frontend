@@ -30,25 +30,25 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Primary: Indigo — matches mobile theme PRIMARY #4F46E5
+        // Primary: Community blue — fresh, friendly, and trustworthy
         primary: {
-          50:  "#eef2ff",
-          100: "#e0e7ff",
-          200: "#c7d2fe",
-          300: "#a5b4fc",
-          400: "#818cf8",
-          500: "#6366f1", // PRIMARY_LIGHT
-          600: "#4f46e5", // PRIMARY (main)
-          700: "#4338ca", // PRIMARY_DARK
-          800: "#3730a3",
-          900: "#312e81",
-          950: "#1e1b4b",
+          50:  "#eff6ff",
+          100: "#dbeafe",
+          200: "#bfdbfe",
+          300: "#93c5fd",
+          400: "#60a5fa",
+          500: "#3b82f6", // PRIMARY_LIGHT
+          600: "#2563eb", // PRIMARY (main)
+          700: "#1d4ed8", // PRIMARY_DARK
+          800: "#1e40af",
+          900: "#1e3a8a",
+          950: "#172554",
         },
-        // Secondary: Cyan — matches mobile theme SECONDARY #06B6D4
+        // Secondary: Blue accent — matches community blue theme
         secondary: {
-          400: "#22d3ee",
-          500: "#06b6d4",
-          600: "#0891b2",
+          400: "#60a5fa",
+          500: "#3b82f6",
+          600: "#2563eb",
         },
       },
     },

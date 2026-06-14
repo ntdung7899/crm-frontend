@@ -22,25 +22,25 @@ export function LoginFormView({
         <>
             {/* Redirect overlay */}
             {isRedirecting && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-indigo-950/90 backdrop-blur-sm">
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-primary-950/90 backdrop-blur-sm">
                     <div className="flex flex-col items-center gap-4 rounded-2xl border border-white/10 bg-white/5 px-10 py-8 text-center text-white shadow-2xl">
-                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-indigo-600/30 ring-2 ring-indigo-400/40">
-                            <Spinner size="sm" className="border-2 border-indigo-300/40 border-t-indigo-200" />
+                        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary-600/30 ring-2 ring-primary-400/40">
+                            <Spinner size="sm" className="border-2 border-primary-300/40 border-t-primary-200" />
                         </div>
                         <div>
                             <p className="text-base font-semibold">Đăng nhập thành công!</p>
-                            <p className="mt-1 text-sm text-indigo-200">Đang chuyển vào hệ thống...</p>
+                            <p className="mt-1 text-sm text-primary-200">Đang chuyển vào hệ thống...</p>
                         </div>
                     </div>
                 </div>
             )}
 
-            <div className="relative min-h-screen overflow-hidden bg-indigo-950">
+            <div className="relative min-h-screen overflow-hidden bg-primary-950">
                 {/* background blobs */}
                 <div className="pointer-events-none absolute inset-0">
-                    <div className="absolute -top-40 -right-40 h-[600px] w-[600px] rounded-full bg-indigo-700/20 blur-3xl" />
+                    <div className="absolute -top-40 -right-40 h-[600px] w-[600px] rounded-full bg-primary-700/20 blur-3xl" />
                     <div className="absolute -bottom-32 -left-32 h-[500px] w-[500px] rounded-full bg-teal-600/15 blur-3xl" />
-                    <div className="absolute top-1/2 left-1/2 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-indigo-500/10 blur-2xl" />
+                    <div className="absolute top-1/2 left-1/2 h-[300px] w-[300px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary-500/10 blur-2xl" />
                 </div>
 
                 <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-6xl items-center px-4 py-10 sm:px-6 lg:px-8">
@@ -54,9 +54,9 @@ export function LoginFormView({
                                 </span>
                                 <h1 className="mt-5 text-4xl font-bold leading-tight tracking-tight text-white">
                                     Chào mừng trở lại!<br />
-                                    <span className="text-indigo-300">Đăng nhập</span> để tiếp tục.
+                                    <span className="text-primary-300">Đăng nhập</span> để tiếp tục.
                                 </h1>
-                                <p className="mt-4 max-w-md text-base leading-relaxed text-indigo-200/70">
+                                <p className="mt-4 max-w-md text-base leading-relaxed text-primary-200/70">
                                     Quản lý khách hàng, thương vụ và vận hành đội ngũ trên một nền tảng thống nhất.
                                 </p>
                             </div>
@@ -66,7 +66,7 @@ export function LoginFormView({
                                     "Theo dõi thương vụ theo thời gian thực",
                                     "Tích hợp Zalo OA & chatbot tự động",
                                 ].map((text) => (
-                                    <div key={text} className="flex items-center gap-3 text-sm text-indigo-200/80">
+                                    <div key={text} className="flex items-center gap-3 text-sm text-primary-200/80">
                                         <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-teal-500/20 text-teal-400">
                                             <svg viewBox="0 0 12 12" fill="currentColor" className="h-3 w-3">
                                                 <path d="M10 3L5 8.5 2 5.5" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
@@ -83,7 +83,7 @@ export function LoginFormView({
                             <div className="rounded-xl bg-white px-8 py-10">
                                 {/* Logo */}
                                 <div className="mb-6 flex justify-center">
-                                    <Image src="/logo.png" alt="CRM Logo" width={130} height={40} className="object-contain" priority />
+                                    <Image src="/logo.jpg" alt="CRM Logo" width={130} height={40} className="object-contain" priority />
                                 </div>
 
                                 <form className="mt-8 space-y-5" onSubmit={handleSubmit}>
@@ -99,7 +99,7 @@ export function LoginFormView({
                                                 onChange={(e) => handleInputChange("identifier", e.target.value)}
                                                 autoComplete="username"
                                                 disabled={isPending}
-                                                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-60 transition"
+                                                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-4 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:opacity-60 transition"
                                             />
                                         </div>
                                         {errors.identifier && <p className="mt-1 text-xs text-red-500">{errors.identifier}</p>}
@@ -117,7 +117,7 @@ export function LoginFormView({
                                                 onChange={(e) => handleInputChange("password", e.target.value)}
                                                 autoComplete="current-password"
                                                 disabled={isPending}
-                                                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-11 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 disabled:opacity-60 transition"
+                                                className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2.5 pl-10 pr-11 text-sm text-gray-900 placeholder:text-gray-400 focus:border-primary-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 disabled:opacity-60 transition"
                                             />
                                             <button
                                                 type="button"
@@ -134,7 +134,7 @@ export function LoginFormView({
                                     <div className="flex justify-end">
                                         <Link
                                             href="/auth/forgot-password"
-                                            className="text-sm font-medium text-indigo-600 hover:text-indigo-700"
+                                            className="text-sm font-medium text-primary-600 hover:text-primary-700"
                                         >
                                             Quên mật khẩu?
                                         </Link>
@@ -143,7 +143,7 @@ export function LoginFormView({
                                     <button
                                         type="submit"
                                         disabled={isPending || !canSubmit}
-                                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-60 transition"
+                                        className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-60 transition"
                                     >
                                         {isPending ? (
                                             <Spinner size="sm" className="border-2 border-white/40 border-t-white" />
@@ -155,7 +155,7 @@ export function LoginFormView({
 
                                     <p className="text-center text-sm text-gray-500">
                                         Chưa có tài khoản?{" "}
-                                        <Link href="/auth/register" className="font-semibold text-indigo-600 hover:text-indigo-700">
+                                        <Link href="/auth/register" className="font-semibold text-primary-600 hover:text-primary-700">
                                             Đăng ký ngay
                                         </Link>
                                     </p>

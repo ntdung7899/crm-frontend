@@ -70,7 +70,7 @@ export default function CustomerDetailPage() {
                 <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
                     <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
                         <div className="flex items-center gap-6">
-                            <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-700 text-5xl font-bold text-white shadow-lg">
+                            <div className="relative flex h-28 w-28 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary-500 to-primary-700 text-5xl font-bold text-white shadow-lg">
                                 {getInitials(customer.customerName)}
                                 <span className="absolute bottom-2 right-2 h-5 w-5 rounded-full border-4 border-white bg-emerald-500" />
                             </div>
@@ -82,8 +82,8 @@ export default function CustomerDetailPage() {
                                 </div>
                                 <div className="mt-5 flex flex-wrap gap-3">
                                     <Badge className="bg-emerald-50 text-emerald-600" label={customer.is_active === false ? "Ngưng hoạt động" : "Hoạt động"} />
-                                    <Badge className="bg-violet-50 text-violet-600" label={customer.type === "company" ? "Doanh nghiệp" : "Cá nhân"} />
-                                    <Badge className="bg-violet-50 text-violet-600" label={primaryGroup} />
+                                    <Badge className="bg-primary-50 text-primary-600" label={customer.type === "company" ? "Doanh nghiệp" : "Cá nhân"} />
+                                    <Badge className="bg-primary-50 text-primary-600" label={primaryGroup} />
                                     <Badge className="bg-sky-50 text-sky-600" label={source} />
                                 </div>
                             </div>
@@ -109,7 +109,7 @@ export default function CustomerDetailPage() {
                     <div className="grid grid-cols-4 gap-4">
                         <QuickAction icon={<Phone className="h-6 w-6" />} label="Gọi điện" className="bg-emerald-50 text-emerald-600" />
                         <QuickAction icon={<MessageCircle className="h-6 w-6" />} label="Gửi Zalo" className="bg-sky-50 text-sky-600" />
-                        <QuickAction icon={<CalendarCheck className="h-6 w-6" />} label="Tạo công việc" className="bg-violet-50 text-violet-600" />
+                        <QuickAction icon={<CalendarCheck className="h-6 w-6" />} label="Tạo công việc" className="bg-primary-50 text-primary-600" />
                         <QuickAction icon={<FileText className="h-6 w-6" />} label="Thêm ghi chú" className="bg-amber-50 text-amber-600" />
                     </div>
                     <button onClick={handleDelete} className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-red-500 hover:text-red-600">
@@ -120,7 +120,7 @@ export default function CustomerDetailPage() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <SummaryCard icon={<Users className="h-6 w-6" />} label="Tổng tương tác" value={interactionCount.toLocaleString("vi-VN")} note="Tin nhắn, cuộc gọi" className="bg-violet-50 text-violet-600" />
+                <SummaryCard icon={<Users className="h-6 w-6" />} label="Tổng tương tác" value={interactionCount.toLocaleString("vi-VN")} note="Tin nhắn, cuộc gọi" className="bg-primary-50 text-primary-600" />
                 <SummaryCard icon={<Clock className="h-6 w-6" />} label="Lần chăm sóc gần nhất" value="-" note="Chưa có dữ liệu" className="bg-emerald-50 text-emerald-600" />
                 <SummaryCard icon={<UserRound className="h-6 w-6" />} label="Người phụ trách" value={assignee} note="Leader / Worker" className="bg-amber-50 text-amber-600" />
                 <SummaryCard icon={<FileText className="h-6 w-6" />} label="Nguồn khách hàng" value={source} note="Nguồn tạo khách hàng" className="bg-sky-50 text-sky-600" />
