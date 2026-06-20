@@ -19,6 +19,7 @@ import {
   FiChevronDown,
   FiPackage,
   FiShoppingCart,
+  FiGlobe,
 } from "react-icons/fi";
 import { clearAuthSession } from "@/lib/auth-session";
 import { authService } from "@/services/auth";
@@ -63,6 +64,18 @@ const sections: NavSection[] = [
     items: [
       { name: "Sản phẩm", href: "/products", icon: FiPackage },
       { name: "Đơn hàng", href: "/orders", icon: FiShoppingCart },
+    ],
+  },
+  {
+    label: "MARKETING",
+    items: [
+      {
+        name: "Marketing",
+        icon: FiGlobe,
+        children: [
+          { name: "Landing Page", href: "/marketing/landing-page" },
+        ],
+      },
     ],
   },
   {

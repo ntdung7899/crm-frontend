@@ -1,4 +1,7 @@
-import Image from "next/image";
+"use client";
+
+import * as React from "react";
+import * as AvatarPrimitive from "@radix-ui/react-avatar";
 import { cn, getInitials } from "@/lib/utils";
 
 interface AvatarProps {
@@ -8,34 +11,38 @@ interface AvatarProps {
   className?: string;
 }
 
-export function Avatar({ src, name, size = "md", className }: AvatarProps) {
-  const sizes = {
-    sm: "w-8 h-8 text-xs",
-    md: "w-10 h-10 text-sm",
-    lg: "w-12 h-12 text-base",
-  };
+const Avatar = React.forwardRef<HTMLSpanElement, AvatarProps>(
+  ({ src, name, size = "md", className, ...props }, ref) => {
+    const sizes = {
+      sm: "w-8 h-8 text-xs",
+      md: "w-10 h-10 text-sm",
+      lg: "w-12 h-12 text-base",
+    };
 
-  if (src) {
     return (
-      <Image
-        src={src}
-        alt={name}
-        width={40}
-        height={40}
-        className={cn("rounded-full object-cover flex-shrink-0", sizes[size], className)}
-      />
+      <AvatarPrimitive.Root
+        ref={ref}
+        className={cn(
+          "relative flex shrink-0 overflow-hidden rounded-full",
+          sizes[size],
+          className
+        )}
+        {...props}
+      >
+        <AvatarPrimitive.Image
+          src={src}
+          alt={name}
+          className="aspect-square h-full w-full object-cover"
+        />
+        <AvatarPrimitive.Fallback
+          className="flex h-full w-full items-center justify-center rounded-full bg-primary-500 font-medium text-white"
+        >
+          {getInitials(name)}
+        </AvatarPrimitive.Fallback>
+      </AvatarPrimitive.Root>
     );
   }
+);
+Avatar.displayName = "Avatar";
 
-  return (
-    <div
-      className={cn(
-        "rounded-full bg-primary-500 text-white flex items-center justify-center font-medium flex-shrink-0",
-        sizes[size],
-        className,
-      )}
-    >
-      {getInitials(name)}
-    </div>
-  );
-}
+export { Avatar };

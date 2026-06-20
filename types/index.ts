@@ -161,3 +161,6 @@ export enum UserRole {
   SALES_REP = "sales_rep",
   USER = "user",
 }
+
+export * from "./landing-page";
+
