@@ -17,6 +17,8 @@ import {
   FiLink,
   FiDollarSign,
   FiChevronDown,
+  FiPackage,
+  FiShoppingCart,
 } from "react-icons/fi";
 import { clearAuthSession } from "@/lib/auth-session";
 import { authService } from "@/services/auth";
@@ -55,6 +57,13 @@ const sections: NavSection[] = [
   {
     label: "CÔNG VIỆC",
     items: [{ name: "Công việc", href: "/tasks", icon: FiCheckSquare }],
+  },
+  {
+    label: "KINH DOANH",
+    items: [
+      { name: "Sản phẩm", href: "/products", icon: FiPackage },
+      { name: "Đơn hàng", href: "/orders", icon: FiShoppingCart },
+    ],
   },
   {
     label: "THÔNG BÁO",

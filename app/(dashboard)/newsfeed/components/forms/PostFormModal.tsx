@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Select } from "@/components/ui/Select";
-import { CreatePostPayload, UpdatePostPayload } from "@/types/api";
+import { CreatePostPayload, PermissionApiRow, UpdatePostPayload } from "@/types/api";
 import { Post, PostStatus } from "@/types/newsfeed";
 import { filesService } from "@/services/files";
+import { permissionsService } from "@/services/permissions";
 import { isVideoUrl, resolveMediaUrl } from "../../utils/postMappers";
 
 interface PostFormModalProps {
@@ -41,6 +42,11 @@ export function PostFormModal({ isOpen, onClose, onSave, post, isSaving }: PostF
   const [mediaUploading, setMediaUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
 
+  // Phân quyền xem bài viết
+  const [permissions, setPermissions] = useState<PermissionApiRow[]>([]);
+  const [restrictView, setRestrictView] = useState(false);
+  const [selectedPerms, setSelectedPerms] = useState<string[]>([]);
+
   const thumbInputRef = useRef<HTMLInputElement>(null);
   const mediaInputRef = useRef<HTMLInputElement>(null);
 
@@ -52,9 +58,23 @@ export function PostFormModal({ isOpen, onClose, onSave, post, isSaving }: PostF
       media_urls: post?.media_urls ?? [],
       status: post?.status || PostStatus.ACTIVE,
     });
+    const ids = post?.view_permission_ids ?? [];
+    setRestrictView(ids.length > 0);
+    setSelectedPerms(ids);
     setErrors({});
     setUploadError("");
   }, [post, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || permissions.length > 0) return;
+    permissionsService
+      .getPermissions({ currentPage: "1", pageSize: "500" })
+      .then((res) => setPermissions(res.responseData?.rows ?? []))
+      .catch(() => setPermissions([]));
+  }, [isOpen, permissions.length]);
+
+  const togglePerm = (id: string) =>
+    setSelectedPerms((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const handleChange = (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = event.target;
@@ -129,6 +149,7 @@ export function PostFormModal({ isOpen, onClose, onSave, post, isSaving }: PostF
       content: formData.content.trim(),
       thumbnail_url: formData.thumbnail_url.trim() || null,
       media_urls: formData.media_urls,
+      view_permission_ids: restrictView ? selectedPerms : [],
       ...(isEditing ? { status: formData.status } : {}),
     });
   };
@@ -170,6 +191,36 @@ export function PostFormModal({ isOpen, onClose, onSave, post, isSaving }: PostF
             className={`w-full rounded-lg border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary-500 ${errors.content ? "border-red-500" : "border-gray-300"}`}
           />
           {errors.content && <p className="mt-1 text-sm text-red-600">{errors.content}</p>}
+        </div>
+
+        {/* Quyền xem */}
+        <div className="rounded-lg border border-gray-200 p-3">
+          <label className="mb-2 block text-sm font-medium text-gray-700">Quyền xem bài viết</label>
+          <div className="flex gap-4 text-sm">
+            <label className="flex items-center gap-2">
+              <input type="radio" name="restrictView" checked={!restrictView} onChange={() => setRestrictView(false)} className="accent-primary-600" />
+              Mọi người trong tổ chức
+            </label>
+            <label className="flex items-center gap-2">
+              <input type="radio" name="restrictView" checked={restrictView} onChange={() => setRestrictView(true)} className="accent-primary-600" />
+              Giới hạn theo quyền
+            </label>
+          </div>
+          {restrictView && (
+            <div className="mt-3 max-h-40 space-y-1 overflow-y-auto rounded-md border border-gray-100 p-2">
+              {permissions.length === 0 ? (
+                <p className="text-xs text-gray-400">Đang tải danh sách quyền...</p>
+              ) : (
+                permissions.map((p) => (
+                  <label key={p.id} className="flex items-center gap-2 text-sm">
+                    <input type="checkbox" checked={selectedPerms.includes(p.id)} onChange={() => togglePerm(p.id)} className="accent-primary-600" />
+                    <span>{p.name}</span>
+                    {p.group_code && <span className="text-xs text-gray-400">({p.group_code})</span>}
+                  </label>
+                ))
+              )}
+            </div>
+          )}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">

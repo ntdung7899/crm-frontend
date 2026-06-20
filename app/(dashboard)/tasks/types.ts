@@ -8,6 +8,16 @@ export interface SubJob {
     status: SubJobStatus;
 }
 
+export interface JobOrderItemForm {
+    id: string;
+    product_id?: string;
+    product_name: string;
+    product_code?: string;
+    quantity: number;
+    unit_price: number;
+    discount_amount: number;
+}
+
 export interface JobFormData {
     job_name: string;
     content: string;
@@ -17,6 +27,11 @@ export interface JobFormData {
     customer_uuid: string;
     status_id: string;
     sub_jobs: SubJob[];
+    // Đơn hàng kèm job (1-1, chỉ khi tạo mới)
+    attach_order: boolean;
+    order_discount: number;
+    order_note: string;
+    order_items: JobOrderItemForm[];
 }
 
 export const emptyFormData: JobFormData = {
@@ -28,4 +43,8 @@ export const emptyFormData: JobFormData = {
     customer_uuid: "",
     status_id: "",
     sub_jobs: [],
+    attach_order: false,
+    order_discount: 0,
+    order_note: "",
+    order_items: [],
 };

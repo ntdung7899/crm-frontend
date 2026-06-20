@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/ToastProvider";
 import { formatVND, formatDateVNDateOnly } from "@/lib/utils";
-import { useFinanceState, useFinanceStore } from "@/hooks/useFinanceStore";
 import type { KhachHangCongNo } from "@/services/finance/types";
 import { CongNoDetailDrawer } from "./components/CongNoDetailDrawer";
+import { useDebtsApi } from "../_hooks/useDebtsApi";
+import { useFinanceUsers } from "../_hooks/useFinanceUsers";
 
 const SUB_TABS = [
   { id: "tong-quan", label: "Công nợ" },
@@ -26,8 +27,8 @@ function ageInDays(iso?: string): number {
 }
 
 export default function CongNoPage() {
-  const state = useFinanceState();
-  const store = useFinanceStore();
+  const { items: congNo, reload } = useDebtsApi();
+  const { users } = useFinanceUsers();
   const toast = useToast();
   const [tab, setTab] = useState("tong-quan");
   const [search, setSearch] = useState("");
@@ -37,7 +38,7 @@ export default function CongNoPage() {
   const [detail, setDetail] = useState<KhachHangCongNo | null>(null);
 
   const list = useMemo(() => {
-    let data = [...state.congNo];
+    let data = [...congNo];
     if (tab === "phai-thu") data = data.filter((kh) => kh.phaiThu > 0);
     if (tab === "phai-tra") data = data.filter((kh) => kh.phaiTra > 0);
 
@@ -53,7 +54,7 @@ export default function CongNoPage() {
     // Sort by tuổi nợ DESC
     data.sort((a, b) => ageInDays(b.ngayCapNhat) - ageInDays(a.ngayCapNhat));
     return data;
-  }, [state.congNo, tab, search, maSoThue, phuTrach, statusFilter]);
+  }, [congNo, tab, search, maSoThue, phuTrach, statusFilter]);
 
   const totals = useMemo(() => {
     return list.reduce(
@@ -111,7 +112,7 @@ export default function CongNoPage() {
               <Select
                 value={phuTrach}
                 onChange={(e) => setPhuTrach(e.target.value)}
-                options={state.nguoiDung.map((u) => ({ value: u.id, label: u.ten }))}
+                options={users.map((u) => ({ value: u.id, label: u.ten }))}
                 placeholder="Người phụ trách"
               />
             </div>
@@ -131,8 +132,8 @@ export default function CongNoPage() {
               className="ml-auto"
               variant="outline"
               onClick={() => {
-                store.recalcCongNo();
-                toast.success("Đã tính lại công nợ");
+                void reload();
+                toast.success("Đã tải lại công nợ");
               }}
             >
               Tính lại công nợ

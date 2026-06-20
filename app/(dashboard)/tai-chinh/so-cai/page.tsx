@@ -9,8 +9,8 @@ import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
 import { useToast } from "@/components/ui/ToastProvider";
 import { formatVND, formatDateVNDateOnly } from "@/lib/utils";
-import { useFinanceState } from "@/hooks/useFinanceStore";
 import type { LoaiBoToan } from "@/services/finance/types";
+import { useLedgerApi } from "../_hooks/useLedgerApi";
 
 const LOAI_LABEL: Record<LoaiBoToan, string> = {
   phieu_thu: "Phiếu thu",
@@ -31,7 +31,7 @@ const TAI_KHOAN_OPTIONS = [
 ];
 
 export default function SoCaiPage() {
-  const state = useFinanceState();
+  const { items: soCai } = useLedgerApi();
   const toast = useToast();
   const searchParams = useSearchParams();
   const [taiKhoan, setTaiKhoan] = useState("");
@@ -45,7 +45,7 @@ export default function SoCaiPage() {
   }, [searchParams]);
 
   const filtered = useMemo(() => {
-    return state.soCai.filter((b) => {
+    return soCai.filter((b) => {
       if (taiKhoan && b.taiKhoanNo !== taiKhoan && b.taiKhoanCo !== taiKhoan) {
         return false;
       }
@@ -54,7 +54,7 @@ export default function SoCaiPage() {
       if (denNgay && new Date(b.ngayChungTu) > new Date(denNgay)) return false;
       return true;
     });
-  }, [state.soCai, taiKhoan, loai, tuNgay, denNgay]);
+  }, [soCai, taiKhoan, loai, tuNgay, denNgay]);
 
   const totals = filtered.reduce(
     (acc, b) => {

@@ -1,40 +1,33 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { ListPageLayout } from "@/components/ui/ListPageLayout";
 import { TaskDetailModal } from "./components/TaskDetailModal";
-import { TaskFormModal } from "./components/TaskFormModal";
 import { TasksSearchBar } from "./components/TasksSearchBar";
 import { TasksTable } from "./components/TasksTable";
 import { useTasksPage } from "./hooks/useTasksPage";
+import type { JobApiRow } from "@/types/api";
 
 export default function TasksPage() {
+    const router = useRouter();
     const {
         isLoading,
         searchQuery,
         setSearchQuery,
         filteredJobs,
         statuses,
-        isFormOpen,
         isDetailOpen,
-        editingJob,
         selectedJob,
-        formData,
-        setFormData,
         getUserNameById,
         getPerformerLabel,
         getCustomerLabel,
-        openCreateForm,
-        openEditForm,
         openDetail,
         closeDetail,
-        closeForm,
-        handleSaveJob,
         handleRequestDeleteJob,
-        performerOptions,
-        customerOptions,
-        statusOptions,
         DeleteConfirmationDialog,
     } = useTasksPage();
+
+    const goEdit = (job: JobApiRow) => router.push(`/tasks/${job.id}/edit`);
 
     if (isLoading) {
         return (
@@ -52,7 +45,7 @@ export default function TasksPage() {
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
                 resultCount={filteredJobs.length}
-                onCreate={openCreateForm}
+                onCreate={() => router.push("/tasks/new")}
             />
 
             <ListPageLayout
@@ -65,7 +58,7 @@ export default function TasksPage() {
                         getPerformerLabel={getPerformerLabel}
                         getCustomerLabel={getCustomerLabel}
                         onOpenDetail={openDetail}
-                        onOpenEdit={openEditForm}
+                        onOpenEdit={goEdit}
                         onRequestDelete={handleRequestDeleteJob}
                     />
                 )}
@@ -79,19 +72,7 @@ export default function TasksPage() {
                 getCustomerLabel={getCustomerLabel}
                 getUserNameById={getUserNameById}
                 onClose={closeDetail}
-                onEdit={openEditForm}
-            />
-
-            <TaskFormModal
-                isOpen={isFormOpen}
-                isEditing={Boolean(editingJob)}
-                formData={formData}
-                performerOptions={performerOptions}
-                customerOptions={customerOptions}
-                statusOptions={statusOptions}
-                onClose={closeForm}
-                onChange={setFormData}
-                onSubmit={handleSaveJob}
+                onEdit={goEdit}
             />
 
             <DeleteConfirmationDialog />

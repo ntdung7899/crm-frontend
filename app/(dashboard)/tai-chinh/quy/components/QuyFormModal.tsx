@@ -5,21 +5,21 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
-import { useToast } from "@/components/ui/ToastProvider";
-import { useFinanceState, useFinanceStore } from "@/hooks/useFinanceStore";
 import type { Quy, TrangThaiQuy } from "@/services/finance/types";
+import type { QuyFormInput } from "@/services/finance/apiMappers";
+import type { FinanceUser } from "../../_hooks/useFinanceUsers";
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
   editing: Quy | null;
+  users: FinanceUser[];
+  quyList: Quy[];
+  isSaving: boolean;
+  onSubmit: (form: QuyFormInput) => Promise<boolean>;
 }
 
-export function QuyFormModal({ isOpen, onClose, editing }: Props) {
-  const store = useFinanceStore();
-  const state = useFinanceState();
-  const toast = useToast();
-
+export function QuyFormModal({ isOpen, onClose, editing, users, quyList, isSaving, onSubmit }: Props) {
   const [ten, setTen] = useState("");
   const [maQuy, setMaQuy] = useState("");
   const [nganSach, setNganSach] = useState("");
@@ -59,12 +59,12 @@ export function QuyFormModal({ isOpen, onClose, editing }: Props) {
       setTen(""); setMaQuy(""); setNganSach(""); setQuyLienKet("");
       setTaiKhoanQuy(""); setTaiKhoanDoiUng(""); setTaiKhoanThue("");
       setSuDungQuyTrinh(false); setSoDauKy(0); setNgayChotDauKy("");
-      setNguoiQuanLy(state.nguoiDung[0]?.id ?? "");
+      setNguoiQuanLy(users[0]?.id ?? "");
       setThuQuy(""); setNguoiDuyet(""); setNguoiThamGia([]);
       setMoTa(""); setTrangThai("active");
     }
     setErrors({});
-  }, [isOpen, editing, state.nguoiDung]);
+  }, [isOpen, editing, users]);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -73,22 +73,22 @@ export function QuyFormModal({ isOpen, onClose, editing }: Props) {
     return Object.keys(e).length === 0;
   };
 
-  const onSubmit = () => {
+  const handleSubmit = async () => {
     if (!validate()) return;
-    const payload = {
-      ten, maQuy, taiKhoanQuy, taiKhoanDoiUng, taiKhoanThue,
-      suDungQuyTrinh, duDauKy: soDauKy, ngayChotDauKy,
-      nguoiQuanLy, thuQuy, nguoiDuyet, nguoiThamGia, moTa, trangThai,
-      loai: "tien_mat" as const,
-    };
-    if (editing) {
-      store.updateQuy(editing.id, payload);
-      toast.success("Cập nhật quỹ thành công");
-    } else {
-      store.createQuy({ ...payload, soDu: soDauKy });
-      toast.success("Tạo quỹ thành công");
-    }
-    onClose();
+    const ok = await onSubmit({
+      ten,
+      maQuy: maQuy || undefined,
+      loai: "tien_mat",
+      duDauKy: soDauKy,
+      nguoiQuanLy,
+      thuQuy: thuQuy || undefined,
+      nguoiDuyet: nguoiDuyet || undefined,
+      taiKhoanQuy: taiKhoanQuy || undefined,
+      taiKhoanThue: taiKhoanThue || undefined,
+      moTa: moTa || undefined,
+      trangThai,
+    });
+    if (ok) onClose();
   };
 
   const toggleThamGia = (id: string) => {
@@ -101,7 +101,7 @@ export function QuyFormModal({ isOpen, onClose, editing }: Props) {
     setNguoiThamGia((prev) => prev.filter((x) => x !== id));
   };
 
-  const userOptions = state.nguoiDung.map((u) => ({ value: u.id, label: u.ten }));
+  const userOptions = users.map((u) => ({ value: u.id, label: u.ten }));
 
   return (
     <Modal
@@ -111,8 +111,8 @@ export function QuyFormModal({ isOpen, onClose, editing }: Props) {
       size="2xl"
       footer={
         <>
-          <Button variant="outline" onClick={onClose}>Quay lại</Button>
-          <Button onClick={onSubmit}>{editing ? "Cập nhật" : "Thêm mới"}</Button>
+          <Button variant="outline" onClick={onClose} disabled={isSaving}>Quay lại</Button>
+          <Button onClick={handleSubmit} disabled={isSaving}>{isSaving ? "Đang lưu..." : editing ? "Cập nhật" : "Thêm mới"}</Button>
         </>
       }
     >
@@ -137,14 +137,14 @@ export function QuyFormModal({ isOpen, onClose, editing }: Props) {
           label="Ngân sách"
           value={nganSach}
           onChange={(e) => setNganSach(e.target.value)}
-          options={state.nganSach?.map((ns) => ({ value: ns.id, label: ns.ten })) ?? []}
+          options={[]}
           placeholder="Vui lòng chọn"
         />
         <Select
           label="Quỹ"
           value={quyLienKet}
           onChange={(e) => setQuyLienKet(e.target.value)}
-          options={state.quy.filter((q) => !editing || q.id !== editing.id).map((q) => ({ value: q.id, label: q.ten }))}
+          options={quyList.filter((q) => !editing || q.id !== editing.id).map((q) => ({ value: q.id, label: q.ten }))}
           placeholder="Vui lòng chọn"
         />
 
@@ -277,7 +277,7 @@ export function QuyFormModal({ isOpen, onClose, editing }: Props) {
           {nguoiThamGia.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mb-2 border border-gray-200 rounded-lg p-2 min-h-[44px]">
               {nguoiThamGia.map((id) => {
-                const u = state.nguoiDung.find((x) => x.id === id);
+                const u = users.find((x) => x.id === id);
                 if (!u) return null;
                 const initials = u.ten.split(" ").map((w) => w[0]).slice(-2).join("").toUpperCase();
                 return (
@@ -305,7 +305,7 @@ export function QuyFormModal({ isOpen, onClose, editing }: Props) {
             onChange={(e) => { if (e.target.value) toggleThamGia(e.target.value); }}
           >
             <option value="">Chọn nhân viên để thêm...</option>
-            {state.nguoiDung
+            {users
               .filter((u) => !nguoiThamGia.includes(u.id))
               .map((u) => (
                 <option key={u.id} value={u.id}>{u.ten}</option>

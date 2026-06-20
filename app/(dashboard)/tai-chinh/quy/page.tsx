@@ -14,7 +14,9 @@ import { PhieuChiDetailModal } from "../phieu-chi/components/PhieuChiDetailModal
 
 export default function QuyPage() {
   const {
-    state,
+    users, quyList, counterparties, yccpList, soCai,
+    isSavingQuy, isSavingThu, isSavingChi,
+    submitQuy, submitThu, submitChi,
     activeTab, setActiveTab,
     search, setSearch,
     trangThaiFilter, setTrangThaiFilter,
@@ -22,15 +24,14 @@ export default function QuyPage() {
     editing,
     filteredQuy,
     totalBalance,
+    phieuThu, phieuChi,
     onCreateQuy, onEditQuy, onDeleteQuy,
     showThuForm, setShowThuForm,
-    editingThu,
     detailThu, setDetailThu,
-    onCreateThu, onEditThu, onViewThu,
+    onCreateThu, onViewThu,
     showChiForm, setShowChiForm,
-    editingChi,
     detailChi, setDetailChi,
-    onCreateChi, onEditChi, onViewChi,
+    onCreateChi, onViewChi,
   } = useQuyPage();
 
   return (
@@ -40,7 +41,7 @@ export default function QuyPage() {
       {activeTab === "quan-ly" && (
         <QuanLyQuyTab
           filteredQuy={filteredQuy}
-          nguoiDung={state.nguoiDung}
+          nguoiDung={users}
           search={search}
           trangThaiFilter={trangThaiFilter}
           totalBalance={totalBalance}
@@ -53,34 +54,43 @@ export default function QuyPage() {
       )}
 
       {activeTab === "phieu-thu" && (
-        <PhieuThuTab
-          phieuThu={state.phieuThu}
-          quyList={state.quy}
-          onCreate={onCreateThu}
-          onEdit={onEditThu}
-          onView={onViewThu}
-        />
+        <PhieuThuTab phieuThu={phieuThu} quyList={quyList} onCreate={onCreateThu} onEdit={onViewThu} onView={onViewThu} />
       )}
 
       {activeTab === "phieu-chi" && (
-        <PhieuChiTab
-          phieuChi={state.phieuChi}
-          quyList={state.quy}
-          onCreate={onCreateChi}
-          onEdit={onEditChi}
-          onView={onViewChi}
-        />
+        <PhieuChiTab phieuChi={phieuChi} quyList={quyList} onCreate={onCreateChi} onEdit={onViewChi} onView={onViewChi} />
       )}
 
-      {activeTab === "hach-toan" && (
-        <HachToanQuyTab soCai={state.soCai} />
-      )}
+      {activeTab === "hach-toan" && <HachToanQuyTab soCai={soCai} />}
 
       {/* Modals */}
-      <QuyFormModal isOpen={showForm} onClose={() => setShowForm(false)} editing={editing} />
-      <PhieuThuFormModal isOpen={showThuForm} onClose={() => setShowThuForm(false)} editing={editingThu} />
+      <QuyFormModal
+        isOpen={showForm}
+        onClose={() => setShowForm(false)}
+        editing={editing}
+        users={users}
+        quyList={filteredQuy}
+        isSaving={isSavingQuy}
+        onSubmit={submitQuy}
+      />
+      <PhieuThuFormModal
+        isOpen={showThuForm}
+        onClose={() => setShowThuForm(false)}
+        quyList={quyList}
+        counterparties={counterparties}
+        isSaving={isSavingThu}
+        onSubmit={submitThu}
+      />
       <PhieuThuDetailModal phieu={detailThu} onClose={() => setDetailThu(null)} />
-      <PhieuChiFormModal isOpen={showChiForm} onClose={() => setShowChiForm(false)} editing={editingChi} />
+      <PhieuChiFormModal
+        isOpen={showChiForm}
+        onClose={() => setShowChiForm(false)}
+        quyList={quyList}
+        counterparties={counterparties}
+        yccpList={yccpList}
+        isSaving={isSavingChi}
+        onSubmit={submitChi}
+      />
       <PhieuChiDetailModal phieu={detailChi} onClose={() => setDetailChi(null)} />
     </div>
   );

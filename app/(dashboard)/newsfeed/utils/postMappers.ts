@@ -49,6 +49,7 @@ export function mapApiRowToPost(row: PostApiRow): Post {
     post_interactions: interactions,
     reaction_count: interactions.filter((i) => i.interaction_type === PostInteractionType.REACTION).length,
     comment_count: interactions.filter((i) => i.interaction_type === PostInteractionType.COMMENT).length,
+    view_permission_ids: row.view_permission_ids ?? [],
   };
 }
 
