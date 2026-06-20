@@ -5,36 +5,35 @@ import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
-import { useToast } from "@/components/ui/ToastProvider";
+import { Spinner } from "@/components/ui/Spinner";
 import { formatVND, formatDateVNDateOnly } from "@/lib/utils";
-import { useFinanceState, useFinanceStore } from "@/hooks/useFinanceStore";
-import type { NganSach, TrangThaiNganSach } from "@/services/finance/types";
-import { FiPlus, FiEdit2, FiTrash2 } from "react-icons/fi";
+import type { TrangThaiNganSach } from "@/services/finance/types";
+import { FiPlus } from "react-icons/fi";
 import { NganSachFormModal } from "./components/NganSachFormModal";
+import { useNganSachApi } from "../_hooks/useNganSachApi";
+import { useFinanceUsers } from "../_hooks/useFinanceUsers";
+
+const STATUS_LABEL: Record<TrangThaiNganSach, { label: string; variant: "success" | "warning" | "default" }> = {
+  active: { label: "Đang sử dụng", variant: "success" },
+  expired: { label: "Hết hạn", variant: "warning" },
+  inactive: { label: "Ngưng", variant: "default" },
+};
 
 export default function NganSachPage() {
-  const state = useFinanceState();
-  const store = useFinanceStore();
-  const toast = useToast();
+  const { items, isLoading, error, isSaving, create } = useNganSachApi();
+  const { users, byId } = useFinanceUsers();
   const [search, setSearch] = useState("");
   const [trangThai, setTrangThai] = useState<string>("");
   const [showForm, setShowForm] = useState(false);
-  const [editing, setEditing] = useState<NganSach | null>(null);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return state.nganSach.filter((n) => {
+    return items.filter((n) => {
       if (q && !n.ten.toLowerCase().includes(q)) return false;
       if (trangThai && n.trangThai !== trangThai) return false;
       return true;
     });
-  }, [state.nganSach, search, trangThai]);
-
-  const STATUS_LABEL: Record<TrangThaiNganSach, { label: string; variant: "success" | "warning" | "default" }> = {
-    active: { label: "Đang sử dụng", variant: "success" },
-    expired: { label: "Hết hạn", variant: "warning" },
-    inactive: { label: "Ngưng", variant: "default" },
-  };
+  }, [items, search, trangThai]);
 
   return (
     <div className="p-6">
@@ -57,16 +56,14 @@ export default function NganSachPage() {
             placeholder="Tất cả trạng thái"
           />
         </div>
-        <Button
-          className="ml-auto"
-          onClick={() => {
-            setEditing(null);
-            setShowForm(true);
-          }}
-        >
+        <Button className="ml-auto" onClick={() => setShowForm(true)}>
           <FiPlus className="w-4 h-4 mr-1" /> Thêm mới
         </Button>
       </div>
+
+      {error && (
+        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-600">{error}</div>
+      )}
 
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
@@ -80,61 +77,43 @@ export default function NganSachPage() {
               <th className="text-left px-4 py-3 font-medium">Người quản lý</th>
               <th className="text-left px-4 py-3 font-medium">Thời gian</th>
               <th className="text-left px-4 py-3 font-medium">Trạng thái</th>
-              <th className="text-right px-4 py-3 font-medium">Thao tác</th>
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 && (
+            {isLoading ? (
               <tr>
-                <td colSpan={9} className="text-center py-8 text-gray-500">
-                  Chưa có ngân sách
+                <td colSpan={8} className="py-10">
+                  <div className="flex justify-center"><Spinner /></div>
                 </td>
               </tr>
+            ) : filtered.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="text-center py-8 text-gray-500">Chưa có ngân sách</td>
+              </tr>
+            ) : (
+              filtered.map((n, i) => {
+                const conLai = n.soTien - n.daSuDung;
+                const status = STATUS_LABEL[n.trangThai];
+                return (
+                  <tr key={n.id} className="border-b border-gray-100 hover:bg-gray-50">
+                    <td className="px-4 py-3">{i + 1}</td>
+                    <td className="px-4 py-3 font-medium text-primary-700">{n.ten}</td>
+                    <td className="px-4 py-3 text-right">{formatVND(n.soTien)}</td>
+                    <td className="px-4 py-3 text-right text-orange-600">{formatVND(n.daSuDung)}</td>
+                    <td className={`px-4 py-3 text-right font-semibold ${conLai < 0 ? "text-red-600" : "text-green-600"}`}>
+                      {formatVND(conLai)}
+                    </td>
+                    <td className="px-4 py-3">{byId[n.nguoiQuanLy] ?? "-"}</td>
+                    <td className="px-4 py-3 text-gray-600 text-xs">
+                      {formatDateVNDateOnly(n.ngayBatDau)} → {formatDateVNDateOnly(n.ngayKetThuc)}
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant={status.variant}>{status.label}</Badge>
+                    </td>
+                  </tr>
+                );
+              })
             )}
-            {filtered.map((n, i) => {
-              const conLai = n.soTien - n.daSuDung;
-              const manager = state.nguoiDung.find((u) => u.id === n.nguoiQuanLy);
-              const status = STATUS_LABEL[n.trangThai];
-              return (
-                <tr key={n.id} className="border-b border-gray-100 hover:bg-gray-50">
-                  <td className="px-4 py-3">{i + 1}</td>
-                  <td className="px-4 py-3 font-medium text-primary-700">{n.ten}</td>
-                  <td className="px-4 py-3 text-right">{formatVND(n.soTien)}</td>
-                  <td className="px-4 py-3 text-right text-orange-600">{formatVND(n.daSuDung)}</td>
-                  <td className={`px-4 py-3 text-right font-semibold ${conLai < 0 ? "text-red-600" : "text-green-600"}`}>
-                    {formatVND(conLai)}
-                  </td>
-                  <td className="px-4 py-3">{manager?.ten ?? "-"}</td>
-                  <td className="px-4 py-3 text-gray-600 text-xs">
-                    {formatDateVNDateOnly(n.ngayBatDau)} → {formatDateVNDateOnly(n.ngayKetThuc)}
-                  </td>
-                  <td className="px-4 py-3">
-                    <Badge variant={status.variant}>{status.label}</Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => {
-                        setEditing(n);
-                        setShowForm(true);
-                      }}
-                      className="text-gray-500 hover:text-primary-600 mr-2"
-                    >
-                      <FiEdit2 className="w-4 h-4 inline" />
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (!confirm(`Xóa ngân sách "${n.ten}"?`)) return;
-                        store.deleteNganSach(n.id);
-                        toast.success("Đã xóa ngân sách");
-                      }}
-                      className="text-gray-500 hover:text-red-600"
-                    >
-                      <FiTrash2 className="w-4 h-4 inline" />
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
           </tbody>
         </table>
       </div>
@@ -142,7 +121,9 @@ export default function NganSachPage() {
       <NganSachFormModal
         isOpen={showForm}
         onClose={() => setShowForm(false)}
-        editing={editing}
+        users={users}
+        isSaving={isSaving}
+        onCreate={create}
       />
     </div>
   );

@@ -11,6 +11,10 @@ import { PhieuThuFormModal } from "./phieu-thu/components/PhieuThuFormModal";
 import { PhieuChiFormModal } from "./phieu-chi/components/PhieuChiFormModal";
 import { CongNoDetailDrawer } from "./cong-no/components/CongNoDetailDrawer";
 import type { KhachHangCongNo } from "@/services/finance/types";
+import { useVouchersApi } from "./_hooks/useVouchersApi";
+import { useQuyApi } from "./_hooks/useQuyApi";
+import { useDebtsApi } from "./_hooks/useDebtsApi";
+import { useYccpApi } from "./_hooks/useYccpApi";
 
 type Period = "month" | "quarter" | "year";
 
@@ -22,6 +26,12 @@ export default function FinanceHomePage() {
   const [showThuForm, setShowThuForm] = useState(false);
   const [showChiForm, setShowChiForm] = useState(false);
   const [detailKH, setDetailKH] = useState<KhachHangCongNo | null>(null);
+
+  const phieuThuApi = useVouchersApi("RECEIPT");
+  const phieuChiApi = useVouchersApi("PAYMENT");
+  const { items: quyListApi } = useQuyApi();
+  const { items: counterpartiesApi } = useDebtsApi();
+  const { items: yccpListApi } = useYccpApi();
 
   const { from } = useMemo(() => {
     const now = new Date();
@@ -201,12 +211,19 @@ export default function FinanceHomePage() {
       <PhieuThuFormModal
         isOpen={showThuForm}
         onClose={() => setShowThuForm(false)}
-        editing={null}
+        quyList={quyListApi}
+        counterparties={counterpartiesApi}
+        isSaving={phieuThuApi.isSaving}
+        onSubmit={phieuThuApi.create}
       />
       <PhieuChiFormModal
         isOpen={showChiForm}
         onClose={() => setShowChiForm(false)}
-        editing={null}
+        quyList={quyListApi}
+        counterparties={counterpartiesApi}
+        yccpList={yccpListApi}
+        isSaving={phieuChiApi.isSaving}
+        onSubmit={phieuChiApi.create}
       />
 
     </div>

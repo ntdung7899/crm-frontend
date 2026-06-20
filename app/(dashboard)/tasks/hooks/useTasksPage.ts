@@ -3,6 +3,8 @@ import { useDeleteConfirmation } from "@/components/ui/useDeleteConfirmation";
 import { useStableToastRef } from "@/hooks/useStableToastRef";
 import { customersService } from "@/services/customers";
 import { jobsService } from "@/services/jobs";
+import { ordersService } from "@/services/orders";
+import { productsService } from "@/services/products";
 import { statusesService } from "@/services/statuses";
 import { usersService } from "@/services/users";
 import {
@@ -11,6 +13,7 @@ import {
     CustomerApiRow,
     JobApiRow,
     JobTimeRange,
+    ProductApiRow,
     StatusApiRow,
     UpdateJobPayload,
     UserApiRow,
@@ -32,6 +35,7 @@ export function useTasksPage() {
     const [adminUsers, setAdminUsers] = useState<AdminUserApiRow[]>([]);
     const [customers, setCustomers] = useState<CustomerApiRow[]>([]);
     const [statuses, setStatuses] = useState<StatusApiRow[]>([]);
+    const [products, setProducts] = useState<ProductApiRow[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -39,6 +43,7 @@ export function useTasksPage() {
     const [editingJob, setEditingJob] = useState<JobApiRow | null>(null);
     const [selectedJob, setSelectedJob] = useState<JobApiRow | null>(null);
     const [formData, setFormData] = useState<JobFormData>(emptyFormData);
+    const [editingOrderId, setEditingOrderId] = useState<string | null>(null);
     const toastRef = useStableToastRef();
     const { requestDeleteConfirmation, DeleteConfirmationDialog } = useDeleteConfirmation();
 
@@ -57,11 +62,13 @@ export function useTasksPage() {
 
     const loadReferenceData = useCallback(async () => {
         try {
-            const [usersRes, adminUsersRes, customersRes] = await Promise.all([
+            const [usersRes, adminUsersRes, customersRes, productsRes] = await Promise.all([
                 usersService.getUsers({ pageSize: "500" }),
                 usersService.getAdminUsers({ pageSize: "500" }),
                 customersService.getCustomers({ pageSize: "500" }),
+                productsService.getProducts({ pageSize: "500" }).catch(() => null),
             ]);
+            setProducts(productsRes?.responseData?.rows ?? []);
 
             let statusesRes;
             try {
@@ -148,12 +155,14 @@ export function useTasksPage() {
 
     const openCreateForm = useCallback(() => {
         setEditingJob(null);
+        setEditingOrderId(null);
         setFormData(emptyFormData);
         setIsFormOpen(true);
     }, []);
 
     const openEditForm = useCallback((job: JobApiRow) => {
         setEditingJob(job);
+        setEditingOrderId(null);
         const jt = getFormTimeFromApi(job.job_time);
         setFormData({
             job_name: job.job_name,
@@ -164,8 +173,37 @@ export function useTasksPage() {
             customer_uuid: job.customer?.id ?? job.customer_uuid ?? "",
             status_id: job.status?.id ?? job.status_id ?? "",
             sub_jobs: loadSubJobsForJob(job.id),
+            attach_order: false,
+            order_discount: 0,
+            order_note: "",
+            order_items: [],
         });
         setIsFormOpen(true);
+
+        // Nạp đơn hàng hiện có của job (1-1) để cho sửa
+        void ordersService
+            .getOrders({ job_id: job.id, pageSize: "1" })
+            .then((res) => {
+                const order = res.responseData?.rows?.[0];
+                if (!order) return;
+                setEditingOrderId(order.id);
+                setFormData((prev) => ({
+                    ...prev,
+                    attach_order: true,
+                    order_discount: Number(order.discount_amount ?? 0),
+                    order_note: order.note ?? "",
+                    order_items: (order.order_items ?? []).map((it) => ({
+                        id: it.id,
+                        product_id: it.product_id ?? undefined,
+                        product_name: it.product_name,
+                        product_code: it.product_code ?? undefined,
+                        quantity: it.quantity,
+                        unit_price: Number(it.unit_price),
+                        discount_amount: Number(it.discount_amount),
+                    })),
+                }));
+            })
+            .catch(() => undefined);
     }, []);
 
     const openDetail = useCallback((job: JobApiRow) => {
@@ -210,8 +248,52 @@ export function useTasksPage() {
                 const updated = response.responseData;
                 setJobs((prev) => prev.map((j) => (j.id === editingJob.id ? { ...j, ...updated } : j)));
                 saveSubJobsForJob(editingJob.id, formData.sub_jobs);
+
+                // Đơn hàng kèm job (1-1): tạo / cập nhật / xoá
+                try {
+                    const validItems = formData.order_items.filter((it) => it.product_name.trim());
+                    const orderBody = {
+                        discount_amount: formData.order_discount || undefined,
+                        note: formData.order_note.trim() || undefined,
+                        status: "pending" as const,
+                        items: validItems.map((it) => ({
+                            product_id: it.product_id || undefined,
+                            product_name: it.product_name.trim(),
+                            product_code: it.product_code || undefined,
+                            quantity: it.quantity,
+                            unit_price: it.unit_price,
+                            discount_amount: it.discount_amount || undefined,
+                        })),
+                    };
+                    if (formData.attach_order && validItems.length > 0) {
+                        if (editingOrderId) await ordersService.updateOrder(editingOrderId, orderBody);
+                        else await ordersService.createOrder({ job_id: editingJob.id, customer_uuid: formData.customer_uuid || undefined, ...orderBody });
+                    } else if (editingOrderId) {
+                        await ordersService.deleteOrder(editingOrderId);
+                    }
+                } catch (orderErr) {
+                    toastRef.current.warning("Đơn hàng chưa lưu", orderErr instanceof Error ? orderErr.message : "Không thể cập nhật đơn hàng kèm theo.");
+                }
+
                 toastRef.current.success("Cập nhật thành công", `Công việc "${formData.job_name}" đã được cập nhật.`);
             } else {
+                const validItems = formData.order_items.filter((it) => it.product_name.trim());
+                const order =
+                    formData.attach_order && validItems.length > 0
+                        ? {
+                              discount_amount: formData.order_discount || undefined,
+                              note: formData.order_note.trim() || undefined,
+                              status: "pending" as const,
+                              items: validItems.map((it) => ({
+                                  product_id: it.product_id || undefined,
+                                  product_name: it.product_name.trim(),
+                                  product_code: it.product_code || undefined,
+                                  quantity: it.quantity,
+                                  unit_price: it.unit_price,
+                                  discount_amount: it.discount_amount || undefined,
+                              })),
+                          }
+                        : undefined;
                 const payload: CreateJobPayload[] = [
                     {
                         job_name: formData.job_name,
@@ -220,6 +302,7 @@ export function useTasksPage() {
                         job_time: buildPayloadTime(),
                         performer_uuid: formData.performer_uuid || undefined,
                         customer_uuid: formData.customer_uuid || undefined,
+                        ...(order ? { order } : {}),
                     },
                 ];
                 const response = await jobsService.createJobs(payload);
@@ -237,7 +320,7 @@ export function useTasksPage() {
             const msg = error instanceof Error ? error.message : "Không thể lưu công việc.";
             toastRef.current.error("Lưu thất bại", msg);
         }
-    }, [buildPayloadTime, editingJob, formData, toastRef]);
+    }, [buildPayloadTime, editingJob, editingOrderId, formData, toastRef]);
 
     const handleDeleteJob = useCallback(async (job: JobApiRow) => {
         try {
@@ -310,6 +393,7 @@ export function useTasksPage() {
         performerOptions,
         customerOptions,
         statusOptions,
+        products,
         DeleteConfirmationDialog,
     };
 }

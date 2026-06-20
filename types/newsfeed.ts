@@ -53,4 +53,6 @@ export interface Post {
   post_interactions: PostInteraction[];
   reaction_count: number;
   comment_count: number;
+  /** Rỗng = mọi người xem được; có ID = chỉ user thuộc quyền đó xem được. */
+  view_permission_ids: string[];
 }

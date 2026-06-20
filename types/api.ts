@@ -598,6 +598,14 @@ export interface CreateJobPayload {
   progress?: number;
   performer_uuid?: string;
   customer_uuid?: string;
+  /** Tạo đơn hàng kèm job (quan hệ 1-1). job_id tự gắn từ job vừa tạo. */
+  order?: {
+    customer_uuid?: string;
+    discount_amount?: number;
+    note?: string;
+    status?: OrderApiRow["status"];
+    items?: OrderItemPayload[];
+  };
 }
 
 export interface UpdateJobPayload {
@@ -696,11 +704,13 @@ export interface PostApiRow {
   updated_at: string | null;
   created_by_user?: PostAuthorApiRow | null;
   post_interactions?: PostInteractionApiRow[];
+  view_permission_ids?: string[] | null;
 }
 
 export interface CreatePostPayload {
   title?: string;
   content: string;
+  view_permission_ids?: string[];
   thumbnail_url?: string | null;
   media_urls?: string[];
 }
@@ -711,6 +721,7 @@ export interface UpdatePostPayload {
   thumbnail_url?: string | null;
   media_urls?: string[];
   status?: "active" | "inactive";
+  view_permission_ids?: string[];
 }
 
 export interface CreatePostInteractionPayload {
@@ -732,6 +743,113 @@ export interface UpdatePostInteractionPayload {
   reaction_type?: ReactionTypeApi;
   content?: string;
 }
+
+// ── Products ────────────────────────────────────────────────────────
+export interface ProductApiRow {
+  id: string;
+  name: string;
+  code: string | null;
+  description: string | null;
+  content: string | null;
+  thumbnail_url: string | null;
+  media_urls: string[] | null;
+  price: number | string;
+  original_price: number | string | null;
+  stock_quantity: number;
+  status: "active" | "inactive";
+  created_by: string;
+  created_at: string | null;
+  updated_at: string | null;
+  created_by_user?: PostAuthorApiRow | null;
+}
+
+export interface CreateProductPayload {
+  name: string;
+  code?: string;
+  description?: string;
+  content?: string;
+  thumbnail_url?: string | null;
+  media_urls?: string[];
+  price: number;
+  original_price?: number;
+  stock_quantity?: number;
+}
+
+export interface UpdateProductPayload extends Partial<CreateProductPayload> {
+  status?: "active" | "inactive";
+}
+
+export type GetProductsResponse = ApiEnvelope<PaginatedRows<ProductApiRow>>;
+export type GetProductResponse = ApiEnvelope<ProductApiRow>;
+export type CreateProductResponse = ApiEnvelope<ProductApiRow>;
+export type UpdateProductResponse = ApiEnvelope<ProductApiRow>;
+export type DeleteProductResponse = ApiEnvelope<null>;
+
+// ── Orders ──────────────────────────────────────────────────────────
+export interface OrderItemApiRow {
+  id: string;
+  order_id?: string;
+  product_id: string | null;
+  product_name: string;
+  product_code: string | null;
+  quantity: number;
+  unit_price: number | string;
+  discount_amount: number | string;
+  total_price: number | string;
+  note?: string | null;
+  product?: { id: string; name: string; code: string | null; thumbnail_url: string | null } | null;
+}
+
+export interface OrderApiRow {
+  id: string;
+  order_code: string;
+  job_id: string | null;
+  customer_uuid: string | null;
+  subtotal_amount: number | string;
+  discount_amount: number | string;
+  total_amount: number | string;
+  status: "pending" | "processing" | "completed" | "cancelled";
+  note: string | null;
+  created_by: string | null;
+  created_at: string | null;
+  updated_at?: string | null;
+  customer_uu?: { id: string; full_name: string | null; phone: string | null; email?: string | null } | null;
+  created_by_user?: PostAuthorApiRow | null;
+  order_items?: OrderItemApiRow[];
+}
+
+export interface OrderItemPayload {
+  product_id?: string;
+  product_name: string;
+  product_code?: string;
+  quantity?: number;
+  unit_price?: number;
+  discount_amount?: number;
+  note?: string;
+}
+
+export interface CreateOrderPayload {
+  job_id: string;
+  customer_uuid?: string;
+  discount_amount?: number;
+  note?: string;
+  status?: OrderApiRow["status"];
+  items?: OrderItemPayload[];
+}
+
+export interface UpdateOrderPayload {
+  customer_uuid?: string;
+  discount_amount?: number;
+  note?: string;
+  status?: OrderApiRow["status"];
+  items?: OrderItemPayload[];
+}
+
+export type GetOrdersResponse = ApiEnvelope<PaginatedRows<OrderApiRow>>;
+export type GetOrderResponse = ApiEnvelope<OrderApiRow>;
+export type CreateOrderResponse = ApiEnvelope<OrderApiRow>;
+export type UpdateOrderResponse = ApiEnvelope<OrderApiRow>;
+export type DeleteOrderResponse = ApiEnvelope<null>;
 
 // ── Logs ───────────────────────────────────────────────────────────
 export interface LogsResponse {
