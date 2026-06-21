@@ -93,12 +93,13 @@ export function TasksKanban({
         });
     };
 
-    const getStatusColorClass = (code: string | null) => {
+    const getStatusColorClass = (code: string | null, name?: string | null) => {
         const c = (code || "").toLowerCase();
-        if (c.includes("todo") || c.includes("need")) return "bg-blue-500";
-        if (c.includes("progress") || c.includes("doing")) return "bg-primary-500";
-        if (c.includes("pending") || c.includes("wait")) return "bg-amber-500";
-        if (c.includes("done") || c.includes("complete")) return "bg-emerald-500";
+        const n = (name || "").toLowerCase();
+        if (c.includes("todo") || c.includes("need") || n.includes("cần làm") || n.includes("mới")) return "bg-blue-500";
+        if (c.includes("progress") || c.includes("doing") || n.includes("đang thực hiện") || n.includes("đang làm")) return "bg-primary-500";
+        if (c.includes("pending") || c.includes("wait") || n.includes("chờ xử lý")) return "bg-amber-500";
+        if (c.includes("done") || c.includes("complete") || n.includes("hoàn thành") || n.includes("thành công")) return "bg-emerald-500";
         return "bg-slate-400";
     };
 
@@ -129,7 +130,7 @@ export function TasksKanban({
             {displayStatuses.map((status) => {
                 const columnJobs = getStatusJobs(status.id);
                 const isOver = dragOverColumnId === status.id;
-                const dotColor = getStatusColorClass(status.code);
+                const dotColor = getStatusColorClass(status.code, status.name);
 
                 return (
                     <div
@@ -137,20 +138,20 @@ export function TasksKanban({
                         onDragOver={(e) => handleDragOver(e, status.id)}
                         onDragLeave={handleDragLeave}
                         onDrop={(e) => handleDrop(e, status.id)}
-                        className={`w-72 shrink-0 p-3.5 rounded-2xl border transition-all flex flex-col gap-3.5 min-h-[550px] ${
+                        className={`w-72 shrink-0 p-4 rounded-2xl border transition-all flex flex-col gap-4 min-h-[550px] ${
                             isOver 
-                                ? "bg-slate-100 border-primary/30 shadow-inner" 
-                                : "bg-slate-50/60 border-slate-200/60"
+                                ? "bg-slate-100/80 border-primary/40 shadow-inner" 
+                                : "bg-slate-50/50 backdrop-blur-md border-slate-200/50 shadow-sm"
                         }`}
                     >
                         {/* Column Header */}
                         <div className="flex items-center justify-between px-1">
                             <div className="flex items-center gap-2">
                                 <span className={`w-2.5 h-2.5 rounded-full ${dotColor} shadow-sm`} />
-                                <span className="text-xs font-black text-slate-800 tracking-tight">
+                                <span className="text-xs font-bold text-slate-800 tracking-tight">
                                     {status.name}
                                 </span>
-                                <span className="bg-slate-200/80 px-2 py-0.5 rounded-full text-[10px] font-extrabold text-slate-500 shadow-sm">
+                                <span className="bg-slate-200/70 px-2 py-0.5 rounded-full text-[10px] font-extrabold text-slate-600">
                                     {columnJobs.length}
                                 </span>
                             </div>
@@ -173,10 +174,13 @@ export function TasksKanban({
                                         draggable
                                         onDragStart={(e) => handleDragStart(e, job.id)}
                                         onClick={() => onOpenDetail(job)}
-                                        className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing flex flex-col relative group"
+                                        className="bg-white pl-5 pr-4 py-4 rounded-xl border border-slate-150 shadow-sm hover:shadow-md hover:border-primary/20 hover:-translate-y-0.5 transition-all duration-300 cursor-grab active:cursor-grabbing flex flex-col relative group overflow-hidden"
                                     >
+                                        {/* Status Accent Bar on the Left */}
+                                        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${dotColor}`} />
+
                                         {/* Action buttons (hover) */}
-                                        <div className="absolute top-3.5 right-3.5 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-2">
+                                        <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white pl-2">
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
@@ -185,7 +189,7 @@ export function TasksKanban({
                                                 className="p-1 hover:bg-slate-100 rounded text-slate-500 hover:text-slate-800 transition-colors"
                                                 title="Sửa"
                                             >
-                                                <FiEdit2 className="w-3 h-3" />
+                                                <FiEdit2 className="w-3.5 h-3.5" />
                                             </button>
                                             <button
                                                 onClick={(e) => {
@@ -195,14 +199,14 @@ export function TasksKanban({
                                                 className="p-1 hover:bg-red-50 rounded text-slate-400 hover:text-red-600 transition-colors"
                                                 title="Xóa"
                                             >
-                                                <FiTrash2 className="w-3 h-3" />
+                                                <FiTrash2 className="w-3.5 h-3.5" />
                                             </button>
                                         </div>
 
                                         {/* Priority Badge */}
                                         <div className="mb-2">
                                             <span
-                                                className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                                className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                                                     priority === "Cao"
                                                         ? "bg-rose-50 text-rose-600 border border-rose-100/60"
                                                         : priority === "Trung bình"
@@ -215,20 +219,20 @@ export function TasksKanban({
                                         </div>
 
                                         {/* Job Title */}
-                                        <h4 className="text-slate-800 text-xs font-black leading-snug line-clamp-2 mb-2 pr-6 hover:text-primary transition-colors cursor-pointer">
+                                        <h4 className="text-slate-800 text-xs font-bold leading-snug line-clamp-2 mb-2 pr-6 hover:text-primary transition-colors cursor-pointer">
                                             {job.job_name}
                                         </h4>
 
                                         {/* Customer label */}
                                         {(job.customer || job.customer_uuid) && (
-                                            <div className="flex items-center gap-1 bg-slate-100/80 px-2 py-0.5 rounded text-[10px] text-slate-500 font-bold w-fit mb-3 max-w-full truncate">
+                                            <div className="flex items-center gap-1 bg-slate-50 border border-slate-100 px-2 py-0.5 rounded text-[10px] text-slate-500 font-medium w-fit mb-3 max-w-full truncate">
                                                 <FiUsers className="w-3 h-3 text-slate-400 shrink-0" />
                                                 <span>{getCustomerLabel(job)}</span>
                                             </div>
                                         )}
 
                                         {/* Time and Performer avatar */}
-                                        <div className="flex items-center justify-between mt-auto pt-2 border-t border-slate-100">
+                                        <div className="flex items-center justify-between mt-auto pt-2.5 border-t border-slate-100">
                                             <div className="flex items-center gap-1 text-[10px]">
                                                 {overdue ? (
                                                     <div className="flex items-center gap-1 text-red-500 font-bold animate-pulse">
@@ -247,7 +251,7 @@ export function TasksKanban({
 
                                             {/* Avatar */}
                                             <div 
-                                                className="w-5.5 h-5.5 rounded-full flex items-center justify-center text-[8px] font-black text-white bg-primary-500 shadow-sm border border-white"
+                                                className="w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-black text-white bg-primary-500 shadow-sm border border-white shrink-0"
                                                 title={performerLabel}
                                             >
                                                 {performerInitials}
@@ -267,7 +271,7 @@ export function TasksKanban({
                         {/* Add Card Button */}
                         <button
                             onClick={onCreateTask}
-                            className="w-full py-2.5 rounded-xl border border-dashed border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors bg-white/50 mt-1"
+                            className="w-full py-2 rounded-xl border border-dashed border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors bg-white/50 mt-1"
                         >
                             <FiPlus className="w-3.5 h-3.5" /> Thêm thẻ
                         </button>

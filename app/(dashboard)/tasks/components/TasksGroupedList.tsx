@@ -88,12 +88,13 @@ export function TasksGroupedList({
         });
     };
 
-    const getStatusColorClass = (code: string | null) => {
+    const getStatusColorClass = (code: string | null, name?: string | null) => {
         const c = (code || "").toLowerCase();
-        if (c.includes("todo") || c.includes("need")) return "bg-blue-500";
-        if (c.includes("progress") || c.includes("doing")) return "bg-primary-500";
-        if (c.includes("pending") || c.includes("wait")) return "bg-amber-500";
-        if (c.includes("done") || c.includes("complete")) return "bg-emerald-500";
+        const n = (name || "").toLowerCase();
+        if (c.includes("todo") || c.includes("need") || n.includes("cần làm") || n.includes("mới")) return "bg-blue-500";
+        if (c.includes("progress") || c.includes("doing") || n.includes("đang thực hiện") || n.includes("đang làm")) return "bg-primary-500";
+        if (c.includes("pending") || c.includes("wait") || n.includes("chờ xử lý")) return "bg-amber-500";
+        if (c.includes("done") || c.includes("complete") || n.includes("hoàn thành") || n.includes("thành công")) return "bg-emerald-500";
         return "bg-slate-400";
     };
 
@@ -103,25 +104,24 @@ export function TasksGroupedList({
         await onUpdateStatus(job.id, targetStatusId);
     };
 
-    const completedStatus = displayStatuses.find(s => s.code?.toLowerCase() === "done" || s.name === "Hoàn thành") || displayStatuses[3];
+    const completedStatus = displayStatuses.find(s => s.code?.toLowerCase() === "done" || s.name === "Hoàn thành") || displayStatuses[displayStatuses.length - 1];
     const todoStatus = displayStatuses.find(s => s.code?.toLowerCase() === "todo" || s.name === "Cần làm") || displayStatuses[0];
 
     return (
         <div className="flex flex-col gap-6 select-none">
             {displayStatuses.map((status) => {
                 const columnJobs = getStatusJobs(status.id);
-                const dotColor = getStatusColorClass(status.code);
-                const isDoneColumn = status.id === completedStatus.id;
+                const dotColor = getStatusColorClass(status.code, status.name);
 
                 return (
                     <div key={status.id} className="flex flex-col gap-3">
                         {/* Section Header */}
                         <div className="flex items-center gap-2 px-1 py-1 border-b border-slate-100 pb-2">
                             <span className={`w-2.5 h-2.5 rounded-full ${dotColor} shadow-sm`} />
-                            <span className="text-xs font-black text-slate-800 tracking-tight">
+                            <span className="text-xs font-bold text-slate-800 tracking-tight">
                                 {status.name}
                             </span>
-                            <span className="bg-slate-200/80 px-2 py-0.5 rounded-full text-[10px] font-extrabold text-slate-500 shadow-sm">
+                            <span className="bg-slate-200/70 px-2 py-0.5 rounded-full text-[10px] font-extrabold text-slate-600 shadow-sm">
                                 {columnJobs.length}
                             </span>
                         </div>
@@ -136,39 +136,41 @@ export function TasksGroupedList({
                                 const overdue = isOverdue(job);
                                 const performerLabel = getPerformerLabel(job);
                                 const performerInitials = getInitials(performerLabel);
-                                const isJobChecked = job.status_id === completedStatus.id || job.status?.id === completedStatus.id;
+                                const isJobChecked = completedStatus ? (job.status_id === completedStatus.id || job.status?.id === completedStatus.id) : false;
 
                                 return (
                                     <div
                                         key={job.id}
                                         onClick={() => onOpenDetail(job)}
-                                        className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex items-center justify-between gap-4 cursor-pointer group"
+                                        className="bg-white p-4 rounded-xl border border-slate-150 shadow-sm hover:shadow-md hover:border-primary/20 hover:-translate-y-0.5 transition-all duration-300 flex items-center justify-between gap-4 cursor-pointer group"
                                     >
                                         <div className="flex items-center gap-3.5 flex-1 min-w-0">
                                             {/* Circular Checkbox */}
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleToggleComplete(job, completedStatus, todoStatus);
-                                                }}
-                                                className={`w-5.5 h-5.5 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
-                                                    isJobChecked
-                                                        ? "bg-emerald-500 border-emerald-500 text-white"
-                                                        : "border-slate-300 hover:border-emerald-500/80 hover:bg-emerald-50/50"
-                                                }`}
-                                            >
-                                                {isJobChecked && <FiCheck className="w-3.5 h-3.5 stroke-[3.5]" />}
-                                            </button>
+                                            {completedStatus && todoStatus && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handleToggleComplete(job, completedStatus, todoStatus);
+                                                    }}
+                                                    className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 transition-colors ${
+                                                        isJobChecked
+                                                            ? "bg-emerald-500 border-emerald-500 text-white"
+                                                            : "border-slate-300 hover:border-emerald-500/80 hover:bg-emerald-50/50"
+                                                    }`}
+                                                >
+                                                    {isJobChecked && <FiCheck className="w-3.5 h-3.5 stroke-[3.5]" />}
+                                                </button>
+                                            )}
 
                                             {/* Details Info */}
                                             <div className="flex flex-col min-w-0">
-                                                <span className={`text-xs font-black text-slate-800 leading-snug truncate pr-4 ${
+                                                <span className={`text-xs font-bold text-slate-800 leading-snug truncate pr-4 ${
                                                     isJobChecked ? "line-through text-slate-400 font-medium" : ""
                                                 }`}>
                                                     {job.job_name}
                                                 </span>
-                                                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10px] text-slate-400 mt-1 font-bold">
+                                                <div className="flex flex-wrap items-center gap-x-2.5 gap-y-0.5 text-[10px] text-slate-400 mt-1 font-medium">
                                                     {(job.customer || job.customer_uuid) && (
                                                         <span className="flex items-center gap-1 text-slate-500">
                                                             <FiUsers className="w-3.5 h-3.5 shrink-0" />
@@ -179,7 +181,7 @@ export function TasksGroupedList({
                                                         <span className="text-slate-300">•</span>
                                                     )}
                                                     {overdue ? (
-                                                        <span className="flex items-center gap-1 text-red-500 font-extrabold animate-pulse">
+                                                        <span className="flex items-center gap-1 text-red-500 font-bold animate-pulse">
                                                             <FiAlertCircle className="w-3.5 h-3.5" />
                                                             Quá hạn: {dateDisplay}
                                                         </span>
@@ -197,7 +199,7 @@ export function TasksGroupedList({
                                         <div className="flex items-center gap-3.5 shrink-0">
                                             {/* Priority */}
                                             <span
-                                                className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                                className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                                                     priority === "Cao"
                                                         ? "bg-rose-50 text-rose-600 border border-rose-100/60"
                                                         : priority === "Trung bình"
@@ -210,7 +212,7 @@ export function TasksGroupedList({
 
                                             {/* Performer Avatar */}
                                             <div 
-                                                className="w-5.5 h-5.5 rounded-full flex items-center justify-center text-[8px] font-black text-white bg-primary-500 shadow-sm border border-white"
+                                                className="w-6 h-6 rounded-full flex items-center justify-center text-[8px] font-black text-white bg-primary-500 shadow-sm border border-white shrink-0"
                                                 title={performerLabel}
                                             >
                                                 {performerInitials}
@@ -223,7 +225,7 @@ export function TasksGroupedList({
                                                         e.stopPropagation();
                                                         onOpenEdit(job);
                                                     }}
-                                                    className="p-1.5 hover:bg-slate-100 rounded text-slate-500 hover:text-slate-800 transition-colors"
+                                                    className="p-1 hover:bg-slate-100 rounded text-slate-500 hover:text-slate-800 transition-colors"
                                                     title="Sửa"
                                                 >
                                                     <FiEdit2 className="w-3.5 h-3.5" />
@@ -233,7 +235,7 @@ export function TasksGroupedList({
                                                         e.stopPropagation();
                                                         onRequestDelete(job);
                                                     }}
-                                                    className="p-1.5 hover:bg-red-50 rounded text-slate-400 hover:text-red-600 transition-colors"
+                                                    className="p-1 hover:bg-red-50 rounded text-slate-400 hover:text-red-600 transition-colors"
                                                     title="Xóa"
                                                 >
                                                     <FiTrash2 className="w-3.5 h-3.5" />

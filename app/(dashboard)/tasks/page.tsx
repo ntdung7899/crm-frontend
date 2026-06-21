@@ -101,7 +101,7 @@ export default function TasksPage() {
             {/* Dynamic Stat cards row */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
                 {/* Total */}
-                <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                         <FiBriefcase className="w-5 h-5" />
                     </div>
@@ -112,7 +112,7 @@ export default function TasksPage() {
                 </div>
 
                 {/* Doing */}
-                <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0">
                         <FiClock className="w-5 h-5" />
                     </div>
@@ -123,7 +123,7 @@ export default function TasksPage() {
                 </div>
 
                 {/* Overdue */}
-                <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-4">
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                         overdueCount > 0 ? "bg-rose-50 text-rose-600 animate-pulse" : "bg-slate-50 text-slate-400"
                     }`}>
@@ -136,7 +136,7 @@ export default function TasksPage() {
                 </div>
 
                 {/* Completed */}
-                <div className="bg-white p-4.5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center gap-4">
+                <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-300 flex items-center gap-4">
                     <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
                         <FiCheckCircle className="w-5 h-5" />
                     </div>
@@ -186,7 +186,7 @@ export default function TasksPage() {
                             return (
                                 <div
                                     key={job.id}
-                                    className="inline-block h-6.5 w-6.5 rounded-full ring-2 ring-white bg-primary-500 text-[8px] font-black text-white flex items-center justify-center shadow-sm"
+                                    className="inline-block h-6 w-6 rounded-full ring-2 ring-white bg-primary-500 text-[8px] font-black text-white flex items-center justify-center shadow-sm"
                                     title={label}
                                 >
                                     {getInitials(label)}
@@ -194,7 +194,7 @@ export default function TasksPage() {
                             );
                         })}
                         {filteredJobs.length > 4 && (
-                            <div className="inline-block h-6.5 w-6.5 rounded-full ring-2 ring-white bg-slate-200 text-[8px] font-black text-slate-500 flex items-center justify-center shadow-sm">
+                            <div className="inline-block h-6 w-6 rounded-full ring-2 ring-white bg-slate-200 text-[8px] font-black text-slate-500 flex items-center justify-center shadow-sm">
                                 +{filteredJobs.length - 4}
                             </div>
                         )}
