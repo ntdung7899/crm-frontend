@@ -336,16 +336,16 @@ export function Sidebar({ isOpen }: SidebarProps) {
     >
       <div
         className={cn(
-          "flex h-16 shrink-0 items-center border-b border-primary-800/40",
-          isOpen ? "justify-between px-5" : "justify-center",
+          "flex h-16 shrink-0 items-center justify-center border-b border-primary-800/40",
+          isOpen ? "px-5" : "",
         )}
       >
         {isOpen ? (
           <Image
             src="/logo.png"
             alt="CRM Logo"
-            width={120}
-            height={36}
+            width={145}
+            height={44}
             className="object-contain"
             priority
           />
@@ -353,8 +353,8 @@ export function Sidebar({ isOpen }: SidebarProps) {
           <Image
             src="/logo.png"
             alt="CRM"
-            width={28}
-            height={28}
+            width={32}
+            height={32}
             className="object-contain"
             priority
           />
