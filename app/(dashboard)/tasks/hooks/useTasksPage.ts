@@ -368,6 +368,20 @@ export function useTasksPage() {
         [statuses],
     );
 
+    const updateJobStatus = useCallback(async (jobId: string, statusId: string) => {
+        try {
+            await jobsService.updateJob(jobId, { status_id: statusId });
+            const targetStatus = statuses.find((s) => s.id === statusId);
+            setJobs((prev) =>
+                prev.map((j) => (j.id === jobId ? { ...j, status_id: statusId, status: targetStatus } : j)),
+            );
+            toastRef.current.success("Cập nhật thành công", "Đã cập nhật trạng thái công việc.");
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : "Không thể cập nhật trạng thái.";
+            toastRef.current.error("Lỗi", msg);
+        }
+    }, [statuses, toastRef]);
+
     return {
         isLoading,
         searchQuery,
@@ -395,5 +409,6 @@ export function useTasksPage() {
         statusOptions,
         products,
         DeleteConfirmationDialog,
+        updateJobStatus,
     };
 }
