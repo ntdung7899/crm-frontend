@@ -178,10 +178,22 @@ export function useTaskForm(jobId?: string) {
                     job_time: buildTime(),
                     performer_uuid: formData.performer_uuid || undefined,
                     customer_uuid: formData.customer_uuid || undefined,
-                    ...(hasOrder ? { order: orderBody } : {}),
                 }];
                 const created = (await jobsService.createJobs(payload)).responseData?.[0];
-                if (created && formData.sub_jobs.length > 0) saveSubJobsForJob(created.id, formData.sub_jobs);
+                if (created) {
+                    if (formData.sub_jobs.length > 0) saveSubJobsForJob(created.id, formData.sub_jobs);
+                    if (hasOrder) {
+                        try {
+                            await ordersService.createOrder({
+                                job_id: created.id,
+                                customer_uuid: formData.customer_uuid || undefined,
+                                ...orderBody,
+                            });
+                        } catch (oe) {
+                            toastRef.current.warning("Đơn hàng chưa lưu", oe instanceof Error ? oe.message : "Không thể tạo đơn hàng kèm theo.");
+                        }
+                    }
+                }
                 toastRef.current.success("Tạo thành công", `Công việc "${formData.job_name}" đã được tạo.`);
             }
             router.push("/tasks");

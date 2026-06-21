@@ -278,22 +278,6 @@ export function useTasksPage() {
                 toastRef.current.success("Cập nhật thành công", `Công việc "${formData.job_name}" đã được cập nhật.`);
             } else {
                 const validItems = formData.order_items.filter((it) => it.product_name.trim());
-                const order =
-                    formData.attach_order && validItems.length > 0
-                        ? {
-                              discount_amount: formData.order_discount || undefined,
-                              note: formData.order_note.trim() || undefined,
-                              status: "pending" as const,
-                              items: validItems.map((it) => ({
-                                  product_id: it.product_id || undefined,
-                                  product_name: it.product_name.trim(),
-                                  product_code: it.product_code || undefined,
-                                  quantity: it.quantity,
-                                  unit_price: it.unit_price,
-                                  discount_amount: it.discount_amount || undefined,
-                              })),
-                          }
-                        : undefined;
                 const payload: CreateJobPayload[] = [
                     {
                         job_name: formData.job_name,
@@ -302,13 +286,36 @@ export function useTasksPage() {
                         job_time: buildPayloadTime(),
                         performer_uuid: formData.performer_uuid || undefined,
                         customer_uuid: formData.customer_uuid || undefined,
-                        ...(order ? { order } : {}),
                     },
                 ];
                 const response = await jobsService.createJobs(payload);
                 const created = response.responseData ?? [];
-                if (created[0] && formData.sub_jobs.length > 0) {
-                    saveSubJobsForJob(created[0].id, formData.sub_jobs);
+                if (created[0]) {
+                    if (formData.sub_jobs.length > 0) {
+                        saveSubJobsForJob(created[0].id, formData.sub_jobs);
+                    }
+                    if (formData.attach_order && validItems.length > 0) {
+                        try {
+                            const orderBody = {
+                                job_id: created[0].id,
+                                customer_uuid: formData.customer_uuid || undefined,
+                                discount_amount: formData.order_discount || undefined,
+                                note: formData.order_note.trim() || undefined,
+                                status: "pending" as const,
+                                items: validItems.map((it) => ({
+                                    product_id: it.product_id || undefined,
+                                    product_name: it.product_name.trim(),
+                                    product_code: it.product_code || undefined,
+                                    quantity: it.quantity,
+                                    unit_price: it.unit_price,
+                                    discount_amount: it.discount_amount || undefined,
+                                })),
+                            };
+                            await ordersService.createOrder(orderBody);
+                        } catch (orderErr) {
+                            toastRef.current.warning("Đơn hàng chưa lưu", orderErr instanceof Error ? orderErr.message : "Không thể tạo đơn hàng kèm theo.");
+                        }
+                    }
                 }
                 setJobs((prev) => [...created, ...prev]);
                 toastRef.current.success("Tạo thành công", `Công việc "${formData.job_name}" đã được tạo.`);
@@ -368,6 +375,20 @@ export function useTasksPage() {
         [statuses],
     );
 
+    const updateJobStatus = useCallback(async (jobId: string, statusId: string) => {
+        try {
+            await jobsService.updateJob(jobId, { status_id: statusId });
+            const targetStatus = statuses.find((s) => s.id === statusId);
+            setJobs((prev) =>
+                prev.map((j) => (j.id === jobId ? { ...j, status_id: statusId, status: targetStatus } : j)),
+            );
+            toastRef.current.success("Cập nhật thành công", "Đã cập nhật trạng thái công việc.");
+        } catch (error) {
+            const msg = error instanceof Error ? error.message : "Không thể cập nhật trạng thái.";
+            toastRef.current.error("Lỗi", msg);
+        }
+    }, [statuses, toastRef]);
+
     return {
         isLoading,
         searchQuery,
@@ -395,5 +416,6 @@ export function useTasksPage() {
         statusOptions,
         products,
         DeleteConfirmationDialog,
+        updateJobStatus,
     };
 }
