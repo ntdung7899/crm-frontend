@@ -29,12 +29,11 @@ dist
 *.log
 logs
 
-# Env files — chỉ giữ .env.example làm nguồn build
-.env
+# Env files
+# KHÔNG loại trừ .env: cicd/build.sh tạo .env từ env_file của runner và Dockerfile COPY .env
 .env.*.local
 .env.development
 .env.test
-!.env.example
 
 # IDE / tooling
 .vscode
