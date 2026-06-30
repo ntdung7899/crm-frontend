@@ -1,0 +1,53 @@
+# ==========================================
+# Author:         Duong Nhat Khoa
+# Email:          nhatkhoa.working@gmail.com
+# Phone:          +84 828 505 090
+# -----------------------------------
+# Created:        2026-06-30
+# LastEditTime:   2026-06-30
+# Version:        1.0
+# Status:         New
+# ==========================================
+
+stages:
+  - build
+  - deploy
+
+variables:
+  DOCKER_BUILDKIT: "1"
+  COMPOSE_DOCKER_CLI_BUILD: "1"
+
+.job_base: &job_base
+  retry:
+    max: 1
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+  only:
+    refs:
+      - release/prod
+    variables:
+      - $CI_COMMIT_MESSAGE =~ /^\[tag\]0.1-prod(\s|$)/
+  before_script:
+    - echo "source=$CI_PIPELINE_SOURCE ref=$CI_COMMIT_REF_NAME sha=$CI_COMMIT_SHORT_SHA"
+
+build:image:
+  stage: build
+  <<: *job_base
+  tags:
+    - runner-builder
+  script:
+    - bash cicd/build.sh
+
+deploy:production:
+  stage: deploy
+  <<: *job_base
+  tags:
+    - runner-inet-149
+  script:
+    - bash cicd/deploy-production.sh
+  after_script:
+    - echo "deploy:production finished - status=$CI_JOB_STATUS"
+  environment:
+    name: production
+    url: https://crm.meu-solutions.com

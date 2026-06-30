@@ -1,0 +1,29 @@
+# ==========================================
+# Author:         Duong Nhat Khoa
+# Email:          nhatkhoa.working@gmail.com
+# Phone:          +84 828 505 090
+# -----------------------------------
+# Created:        2026-06-30
+# LastEditTime:   2026-06-30
+# Version:        1.0
+# Status:         New
+# ==========================================
+
+name: ${ENVIRONMENT_NAME}-${PROJECT_NAME}
+
+services:
+  app:
+    container_name: ${ENVIRONMENT_NAME}-${PROJECT_NAME}
+    image: ${APP_IMAGE}
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+    ports:
+      - "${PORT_APP}:3002"
+    networks:
+      - meu-solutions-product-alpha-net
+
+networks:
+  meu-solutions-product-alpha-net:
+    external: true
+    name: meu-solutions-product-alpha-net
