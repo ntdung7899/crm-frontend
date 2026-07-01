@@ -3,11 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, ChevronDown, Download, RefreshCw, Search, ShieldCheck, UserCheck, UserPlus, Users, UserX } from "lucide-react";
 import { TablePagination } from "@/components/ui/TablePagination";
-import { UserProfile } from "@/types/user";
 import { UserTable } from "./UserTable";
 import { useUsersPage } from "../../hooks/useUsersPage";
+import { KpiTabContent } from "./KpiTabContent";
 
-type UserFilter = "all" | "active" | "inactive";
+type UserFilter = "all" | "active" | "inactive" | "kpi";
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -88,51 +88,58 @@ export function UserListView() {
                     <FilterTab id="all" label="Tất cả" count={filterCounts.all || 0} activeFilter={activeFilter} onChange={setActiveFilter} />
                     <FilterTab id="active" label="Đang hoạt động" count={filterCounts.active || 0} activeFilter={activeFilter} onChange={setActiveFilter} />
                     <FilterTab id="inactive" label="Ngưng hoạt động" count={filterCounts.inactive || 0} activeFilter={activeFilter} onChange={setActiveFilter} />
+                    <FilterTab id="kpi" label="KPI" count={6} activeFilter={activeFilter} onChange={setActiveFilter} />
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 border-b border-gray-100 p-5 xl:grid-cols-[1fr_320px_320px_auto_auto] xl:items-end">
-                    <div className="relative">
-                        <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-                        <input
-                            value={searchQuery}
-                            onChange={(event) => setSearchQuery(event.target.value)}
-                            placeholder="Tìm tên, email, số điện thoại..."
-                            className="h-12 w-full rounded-lg border border-gray-200 bg-white pl-12 pr-4 text-sm outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
-                        />
-                    </div>
-                    <FilterSelect label="Vai trò" options={["Tất cả vai trò", "Owner", "Leader", "Worker"]} />
-                    <FilterSelect label="Trạng thái" options={["Tất cả trạng thái", "Đang hoạt động", "Ngưng hoạt động"]} />
-                    <button onClick={handleExport} className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
-                        <Download className="h-4 w-4" />
-                        Xuất file
-                    </button>
-                    <button className="inline-flex h-12 w-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-50">
-                        <RefreshCw className="h-5 w-5" />
-                    </button>
-                </div>
-
-                {filteredUsers.length === 0 ? (
-                    <div className="px-6 py-16 text-center text-sm text-gray-400">Không có dữ liệu để hiển thị.</div>
+                {activeFilter === "kpi" ? (
+                    <KpiTabContent />
                 ) : (
-                    <UserTable
-                        users={pagedUsers}
-                        userRolesByUser={userRolesByUser}
-                        onUserClick={handleUserClick}
-                        onUserEdit={handleEditUser}
-                        onUserDelete={handleRequestDeleteUser}
-                    />
-                )}
+                    <>
+                        <div className="grid grid-cols-1 gap-4 border-b border-gray-100 p-5 xl:grid-cols-[1fr_320px_320px_auto_auto] xl:items-end">
+                            <div className="relative">
+                                <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+                                <input
+                                    value={searchQuery}
+                                    onChange={(event) => setSearchQuery(event.target.value)}
+                                    placeholder="Tìm tên, email, số điện thoại..."
+                                    className="h-12 w-full rounded-lg border border-gray-200 bg-white pl-12 pr-4 text-sm outline-none transition focus:border-primary-400 focus:ring-2 focus:ring-primary-100"
+                                />
+                            </div>
+                            <FilterSelect label="Vai trò" options={["Tất cả vai trò", "Owner", "Leader", "Worker"]} />
+                            <FilterSelect label="Trạng thái" options={["Tất cả trạng thái", "Đang hoạt động", "Ngưng hoạt động"]} />
+                            <button onClick={handleExport} className="inline-flex h-12 items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-5 text-sm font-semibold text-gray-700 transition hover:bg-gray-50">
+                                <Download className="h-4 w-4" />
+                                Xuất file
+                            </button>
+                            <button className="inline-flex h-12 w-12 items-center justify-center rounded-lg border border-gray-200 bg-white text-gray-700 transition hover:bg-gray-50">
+                                <RefreshCw className="h-5 w-5" />
+                            </button>
+                        </div>
 
-                <TablePagination
-                    currentPage={currentPage}
-                    pageSize={pageSize}
-                    totalCount={filteredUsers.length}
-                    onPageChange={setCurrentPage}
-                    onPageSizeChange={(size) => {
-                        setPageSize(size);
-                        setCurrentPage(1);
-                    }}
-                />
+                        {filteredUsers.length === 0 ? (
+                            <div className="px-6 py-16 text-center text-sm text-gray-400">Không có dữ liệu để hiển thị.</div>
+                        ) : (
+                            <UserTable
+                                users={pagedUsers}
+                                userRolesByUser={userRolesByUser}
+                                onUserClick={handleUserClick}
+                                onUserEdit={handleEditUser}
+                                onUserDelete={handleRequestDeleteUser}
+                            />
+                        )}
+
+                        <TablePagination
+                            currentPage={currentPage}
+                            pageSize={pageSize}
+                            totalCount={filteredUsers.length}
+                            onPageChange={setCurrentPage}
+                            onPageSizeChange={(size) => {
+                                setPageSize(size);
+                                setCurrentPage(1);
+                            }}
+                        />
+                    </>
+                )}
             </div>
             <DeleteConfirmationDialog />
         </div>
@@ -154,7 +161,7 @@ function StatCard({ icon, label, value, note, className }: { icon: React.ReactNo
 
 function FilterTab({ id, label, count, activeFilter, onChange }: { id: UserFilter; label: string; count: number; activeFilter: UserFilter; onChange: (filter: UserFilter) => void }) {
     const isActive = activeFilter === id;
-    const color = id === "inactive" ? "text-orange-600" : id === "active" ? "text-emerald-600" : "text-primary-600";
+    const color = id === "inactive" ? "text-orange-600" : id === "active" ? "text-emerald-600" : id === "kpi" ? "text-purple-600" : "text-primary-600";
 
     return (
         <button onClick={() => onChange(id)} className={`flex items-center gap-2 border-b-2 px-2 py-4 text-sm font-semibold transition ${isActive ? `border-primary-600 ${color}` : "border-transparent text-gray-600 hover:text-gray-900"}`}>
