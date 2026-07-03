@@ -36,3 +36,6 @@ next-env.d.ts
 .agent
 .agents
 .claude
+
+# docs
+docs/api/API_KPI.md

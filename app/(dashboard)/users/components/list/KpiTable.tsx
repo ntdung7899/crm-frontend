@@ -1,10 +1,13 @@
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import { KPI } from "@/types/kpi";
 
 interface KpiTableProps {
     kpis: KPI[];
+    onSort?: (key: keyof KPI) => void;
+    sortConfig?: { key: keyof KPI, direction: 'asc' | 'desc' } | null;
 }
 
-export function KpiTable({ kpis }: KpiTableProps) {
+export function KpiTable({ kpis, onSort, sortConfig }: KpiTableProps) {
     const getStatusStyles = (status: string) => {
         switch (status) {
             case "COMPLETED":
@@ -35,17 +38,39 @@ export function KpiTable({ kpis }: KpiTableProps) {
         return "bg-sky-500";
     };
 
+    const SortableHeader = ({ label, sortKey, align = "left" }: { label: string; sortKey: keyof KPI; align?: "left" | "right" | "center" }) => {
+        const isActive = sortConfig?.key === sortKey;
+        return (
+            <th 
+                className={`px-6 py-4 font-semibold cursor-pointer select-none hover:bg-gray-100 transition-colors ${
+                    align === "right" ? "text-right whitespace-nowrap" : ""
+                }`}
+                onClick={() => onSort?.(sortKey)}
+            >
+                <div className={`flex items-center gap-1.5 ${align === "right" ? "justify-end" : ""}`}>
+                    {label}
+                    {isActive ? (
+                        sortConfig.direction === 'asc' ? <ArrowUp className="h-4 w-4 text-primary-600" /> : <ArrowDown className="h-4 w-4 text-primary-600" />
+                    ) : (
+                        <ArrowUpDown className="h-4 w-4 text-gray-400" />
+                    )}
+                </div>
+            </th>
+        );
+    };
+
     return (
         <div className="w-full overflow-x-auto">
             <table className="w-full text-left text-sm text-gray-600">
                 <thead className="bg-gray-50 text-gray-900 border-b border-gray-200">
                     <tr>
-                        <th className="px-6 py-4 font-semibold">Tên KPI</th>
-                        <th className="px-6 py-4 font-semibold">Nhân sự</th>
+                        <SortableHeader label="Tên KPI" sortKey="kpi_name" />
+                        <SortableHeader label="Nhân sự" sortKey="user_full_name" />
                         <th className="px-6 py-4 font-semibold">Chu kỳ</th>
-                        <th className="px-6 py-4 font-semibold text-right whitespace-nowrap">Mục tiêu</th>
-                        <th className="px-6 py-4 font-semibold text-right whitespace-nowrap">Thực tế</th>
-                        <th className="px-6 py-4 font-semibold">Tiến độ</th>
+                        <SortableHeader label="Mục tiêu" sortKey="target_value" align="right" />
+                        <SortableHeader label="Thực tế" sortKey="current_value" align="right" />
+                        <th className="px-6 py-4 font-semibold">Phân loại</th>
+                        <SortableHeader label="Tiến độ" sortKey="completion_percentage" />
                         <th className="px-6 py-4 font-semibold">Trạng thái</th>
                     </tr>
                 </thead>
@@ -73,6 +98,18 @@ export function KpiTable({ kpis }: KpiTableProps) {
                             </td>
                             <td className="px-6 py-4 text-right font-medium text-gray-900">
                                 {kpi.current_value.toLocaleString("vi-VN")}
+                            </td>
+                            <td className="px-6 py-4">
+                                <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${
+                                    kpi.kpi_type === 'AUTOMATIC' 
+                                        ? 'bg-blue-50 text-blue-700 ring-blue-600/20' 
+                                        : 'bg-gray-50 text-gray-700 ring-gray-600/20'
+                                }`}>
+                                    {kpi.kpi_type === 'AUTOMATIC' ? 'Tự động' : 'Thủ công'}
+                                </span>
+                                {kpi.related_module && (
+                                    <div className="text-xs text-gray-500 mt-1 uppercase">{kpi.related_module}</div>
+                                )}
                             </td>
                             <td className="px-6 py-4 w-48">
                                 <div className="flex items-center gap-3">
