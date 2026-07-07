@@ -1,0 +1,270 @@
+import { useState, useEffect, useMemo } from "react";
+import ExcelJS from "exceljs";
+import { saveAs } from "file-saver";
+import { TeamKpiMember } from "@/types/kpi";
+import { kpiService } from "@/services/kpis";
+
+export function useKpiTab(onKpisLoaded?: (count: number) => void) {
+    const [searchQuery, setSearchQuery] = useState("");
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+
+    // Filter states (Applied)
+    const [appliedYear, setAppliedYear] = useState(new Date().getFullYear());
+    const [appliedPeriodType, setAppliedPeriodType] = useState("month");
+    const [appliedPeriodValue, setAppliedPeriodValue] = useState(new Date().getMonth() + 1);
+    const [appliedStatusFilter, setAppliedStatusFilter] = useState("ALL");
+
+    // Filter states (Draft for UI)
+    const [draftYear, setDraftYear] = useState(new Date().getFullYear());
+    const [draftPeriodType, setDraftPeriodType] = useState("month");
+    const [draftPeriodValue, setDraftPeriodValue] = useState(new Date().getMonth() + 1);
+    const [draftStatusFilter, setDraftStatusFilter] = useState("ALL");
+
+    const [kpis, setKpis] = useState<TeamKpiMember[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const fetchKpis = async () => {
+        setIsLoading(true);
+        try {
+            const res = await kpiService.getTeamKpis(appliedYear, appliedPeriodType, appliedPeriodValue);
+            if (res.status === "success" && res.responseData?.team) {
+                setKpis(res.responseData.team);
+                onKpisLoaded?.(res.responseData.team.length);
+            } else {
+                setKpis([]);
+                onKpisLoaded?.(0);
+            }
+        } catch (error) {
+            console.error("Failed to fetch KPIs:", error);
+            setKpis([]);
+            onKpisLoaded?.(0);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchKpis();
+    }, [appliedYear, appliedPeriodType, appliedPeriodValue]);
+
+    const isPeriodOver = useMemo(() => {
+        const now = new Date();
+        const currentYear = now.getFullYear();
+        const currentMonth = now.getMonth() + 1;
+        const currentQuarter = Math.ceil(currentMonth / 3);
+
+        if (appliedYear < currentYear) return true;
+        if (appliedYear > currentYear) return false;
+
+        if (appliedPeriodType === "month") {
+            return appliedPeriodValue < currentMonth;
+        }
+        if (appliedPeriodType === "quarter") {
+            return appliedPeriodValue < currentQuarter;
+        }
+        return false;
+    }, [appliedPeriodType, appliedPeriodValue, appliedYear]);
+
+    const filteredKpis = useMemo(() => {
+        let result = kpis.filter((kpi) => {
+            const matchesSearch = kpi.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                kpi.email.toLowerCase().includes(searchQuery.toLowerCase());
+            
+            // Lọc theo trạng thái
+            let matchesStatus = true;
+            if (appliedStatusFilter !== "ALL") {
+                const averageRate = kpi.achievement ? (kpi.achievement.revenue_rate + kpi.achievement.new_customers_rate + kpi.achievement.jobs_completed_rate) / 3 : 0;
+                let status = "IN_PROGRESS";
+                if (!kpi.target) status = "NO_KPI";
+                else if (averageRate >= 120) status = "OVERACHIEVED";
+                else if (averageRate >= 100) status = "COMPLETED";
+                else if (isPeriodOver) status = "FAILED";
+                else status = "IN_PROGRESS";
+                
+                matchesStatus = status === appliedStatusFilter;
+            }
+
+            return matchesSearch && matchesStatus;
+        });
+
+        if (sortConfig) {
+            result.sort((a, b) => {
+                let aValue: any;
+                let bValue: any;
+
+                if (sortConfig.key === 'average_rate') {
+                    aValue = a.achievement ? (a.achievement.revenue_rate + a.achievement.new_customers_rate + a.achievement.jobs_completed_rate) / 3 : -1;
+                    bValue = b.achievement ? (b.achievement.revenue_rate + b.achievement.new_customers_rate + b.achievement.jobs_completed_rate) / 3 : -1;
+                } else if (sortConfig.key === 'actual_revenue') {
+                    aValue = a.target ? a.actual?.revenue || 0 : -1;
+                    bValue = b.target ? b.actual?.revenue || 0 : -1;
+                } else if (sortConfig.key === 'status') {
+                    const getStatusScore = (kpi: any) => {
+                        if (!kpi.target) return 0; // Chưa có KPI
+                        const avg = kpi.achievement ? (kpi.achievement.revenue_rate + kpi.achievement.new_customers_rate + kpi.achievement.jobs_completed_rate) / 3 : 0;
+                        if (avg >= 120) return 4; // Vượt
+                        if (avg >= 100) return 3; // Đạt
+                        if (isPeriodOver) return 1; // Không đạt
+                        return 2; // Đang thực hiện
+                    };
+                    aValue = getStatusScore(a);
+                    bValue = getStatusScore(b);
+                } else {
+                    aValue = (a as any)[sortConfig.key];
+                    bValue = (b as any)[sortConfig.key];
+                }
+                
+                if (aValue === bValue) return 0;
+                if (aValue == null) return 1;
+                if (bValue == null) return -1;
+                
+                let comparison = 0;
+                if (typeof aValue === 'string' && typeof bValue === 'string') {
+                    comparison = aValue.localeCompare(bValue);
+                } else if (typeof aValue === 'number' && typeof bValue === 'number') {
+                    comparison = aValue - bValue;
+                } else {
+                    comparison = String(aValue).localeCompare(String(bValue));
+                }
+                
+                return sortConfig.direction === 'asc' ? comparison : -comparison;
+            });
+        }
+
+        return result;
+    }, [kpis, searchQuery, sortConfig, appliedStatusFilter, appliedPeriodType, appliedPeriodValue, appliedYear, isPeriodOver]);
+
+    const handleExport = async () => {
+        if (filteredKpis.length === 0) return;
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Danh_sach_KPI');
+
+        // Khai báo cột
+        worksheet.columns = [
+            { header: 'Nhân sự', key: 'name', width: 30 },
+            { header: 'Email', key: 'email', width: 25 },
+            { header: 'Doanh thu (target)', key: 'target_revenue', width: 20 },
+            { header: 'Doanh thu (reality)', key: 'actual_revenue', width: 20 },
+            { header: 'Khách hàng (target)', key: 'target_customers', width: 20 },
+            { header: 'Khách hàng (reality)', key: 'actual_customers', width: 20 },
+            { header: 'Công việc (target)', key: 'target_jobs', width: 20 },
+            { header: 'Công việc (reality)', key: 'actual_jobs', width: 20 },
+            { header: 'Tiến độ (TB) (%)', key: 'progress', width: 15 },
+            { header: 'Trạng thái', key: 'status', width: 20 }
+        ];
+
+        // Style dòng tiêu đề
+        worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        worksheet.getRow(1).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FF2563EB' } // Primary Blue
+        };
+        worksheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
+
+        // Đổ dữ liệu
+        filteredKpis.forEach(kpi => {
+            const averageRate = kpi.achievement ? (kpi.achievement.revenue_rate + kpi.achievement.new_customers_rate + kpi.achievement.jobs_completed_rate) / 3 : 0;
+            let statusLabel = 'Chưa có KPI';
+            if (kpi.target) {
+                if (averageRate >= 120) statusLabel = 'Vượt';
+                else if (averageRate >= 100) statusLabel = 'Đạt';
+                else if (isPeriodOver) statusLabel = 'Không đạt';
+                else statusLabel = 'Đang thực hiện';
+            }
+
+            worksheet.addRow({
+                name: kpi.full_name,
+                email: kpi.email,
+                target_revenue: kpi.target ? Number(kpi.target.target_revenue) : 0,
+                actual_revenue: kpi.target ? kpi.actual.revenue : 0,
+                target_customers: kpi.target ? kpi.target.target_new_customers : 0,
+                actual_customers: kpi.target ? kpi.actual.new_customers : 0,
+                target_jobs: kpi.target ? kpi.target.target_jobs_completed : 0,
+                actual_jobs: kpi.target ? kpi.actual.jobs_completed : 0,
+                progress: kpi.target ? averageRate.toFixed(2) : 0,
+                status: statusLabel
+            });
+        });
+
+        // Kẻ viền (border) cho toàn bộ ô
+        worksheet.eachRow((row) => {
+            row.eachCell((cell) => {
+                cell.border = {
+                    top: { style: 'thin' },
+                    left: { style: 'thin' },
+                    bottom: { style: 'thin' },
+                    right: { style: 'thin' }
+                };
+            });
+        });
+        
+        ['target_revenue', 'actual_revenue', 'target_customers', 'actual_customers', 'target_jobs', 'actual_jobs'].forEach(key => {
+            worksheet.getColumn(key).alignment = { vertical: 'middle', horizontal: 'right' };
+            worksheet.getColumn(key).numFmt = '#,##0';
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+        saveAs(blob, `KPI_Team_Export_${new Date().toISOString().split('T')[0]}.xlsx`);
+    };
+
+    const pagedKpis = useMemo(
+        () => filteredKpis.slice((currentPage - 1) * pageSize, currentPage * pageSize),
+        [currentPage, filteredKpis, pageSize]
+    );
+
+    const handleSort = (key: keyof TeamKpiMember | "average_rate" | string) => {
+        if (sortConfig?.key === key) {
+            setSortConfig({ key, direction: sortConfig.direction === 'asc' ? 'desc' : 'asc' });
+        } else {
+            setSortConfig({ key, direction: 'asc' });
+        }
+    };
+
+    return {
+        kpis,
+        filteredKpis,
+        pagedKpis,
+        isLoading,
+        isPeriodOver,
+        fetchKpis,
+        handleExport,
+        
+        currentPage,
+        setCurrentPage,
+        pageSize,
+        setPageSize,
+        
+        sortConfig,
+        handleSort,
+        
+        searchQuery,
+        setSearchQuery,
+        
+        appliedYear,
+        setAppliedYear,
+        appliedPeriodType,
+        setAppliedPeriodType,
+        appliedPeriodValue,
+        setAppliedPeriodValue,
+        appliedStatusFilter,
+        setAppliedStatusFilter,
+        
+        draftYear,
+        setDraftYear,
+        draftPeriodType,
+        setDraftPeriodType,
+        draftPeriodValue,
+        setDraftPeriodValue,
+        draftStatusFilter,
+        setDraftStatusFilter,
+        
+        isCreateModalOpen,
+        setIsCreateModalOpen
+    };
+}

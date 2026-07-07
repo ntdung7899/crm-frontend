@@ -5,9 +5,10 @@ interface KpiTableProps {
     kpis: TeamKpiMember[];
     onSort?: (key: keyof TeamKpiMember | "average_rate") => void;
     sortConfig?: { key: string, direction: 'asc' | 'desc' } | null;
+    isPeriodOver?: boolean;
 }
 
-export function KpiTable({ kpis, onSort, sortConfig }: KpiTableProps) {
+export function KpiTable({ kpis, onSort, sortConfig, isPeriodOver = false }: KpiTableProps) {
     const getStatusStyles = (status: string) => {
         switch (status) {
             case "COMPLETED":
@@ -44,10 +45,9 @@ export function KpiTable({ kpis, onSort, sortConfig }: KpiTableProps) {
     };
 
     const calculateStatus = (average: number) => {
-        if (average === 0) return "IN_PROGRESS";
         if (average >= 120) return "OVERACHIEVED";
         if (average >= 100) return "COMPLETED";
-        if (average < 50) return "FAILED";
+        if (isPeriodOver) return "FAILED";
         return "IN_PROGRESS";
     };
 
@@ -81,7 +81,7 @@ export function KpiTable({ kpis, onSort, sortConfig }: KpiTableProps) {
                         <SortableHeader label="Doanh thu" sortKey="actual_revenue" align="right" />
                         <th className="px-4 py-4 font-semibold text-right">Khách hàng</th>
                         <th className="px-4 py-4 font-semibold text-right">Công việc</th>
-                        <SortableHeader label="Tiến độ (TB)" sortKey="average_rate" />
+                        <SortableHeader label="Tiến độ" sortKey="average_rate" />
                         <SortableHeader label="Trạng thái" sortKey="status" />
                     </tr>
                 </thead>
@@ -105,30 +105,30 @@ export function KpiTable({ kpis, onSort, sortConfig }: KpiTableProps) {
                             </td>
                             <td className="px-4 py-4 text-right">
                                 {kpi.target ? (
-                                    <>
-                                        <div className="font-medium text-gray-900">{kpi.actual.revenue.toLocaleString("vi-VN")}</div>
-                                        <div className="text-xs text-gray-500">/ {Number(kpi.target.target_revenue).toLocaleString("vi-VN")}</div>
-                                    </>
+                                    <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+                                        <span className="font-medium text-gray-900">{kpi.actual.revenue.toLocaleString("vi-VN")}</span>
+                                        <span className="text-xs text-gray-500">/ {Number(kpi.target.target_revenue).toLocaleString("vi-VN")}</span>
+                                    </div>
                                 ) : (
                                     <span className="text-gray-400 italic">Chưa giao</span>
                                 )}
                             </td>
                             <td className="px-4 py-4 text-right">
                                 {kpi.target ? (
-                                    <>
-                                        <div className="font-medium text-gray-900">{kpi.actual.new_customers}</div>
-                                        <div className="text-xs text-gray-500">/ {kpi.target.target_new_customers}</div>
-                                    </>
+                                    <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+                                        <span className="font-medium text-gray-900">{kpi.actual.new_customers}</span>
+                                        <span className="text-xs text-gray-500">/ {kpi.target.target_new_customers}</span>
+                                    </div>
                                 ) : (
                                     <span className="text-gray-400 italic">Chưa giao</span>
                                 )}
                             </td>
                             <td className="px-4 py-4 text-right">
                                 {kpi.target ? (
-                                    <>
-                                        <div className="font-medium text-gray-900">{kpi.actual.jobs_completed}</div>
-                                        <div className="text-xs text-gray-500">/ {kpi.target.target_jobs_completed}</div>
-                                    </>
+                                    <div className="flex items-center justify-end gap-1 whitespace-nowrap">
+                                        <span className="font-medium text-gray-900">{kpi.actual.jobs_completed}</span>
+                                        <span className="text-xs text-gray-500">/ {kpi.target.target_jobs_completed}</span>
+                                    </div>
                                 ) : (
                                     <span className="text-gray-400 italic">Chưa giao</span>
                                 )}
