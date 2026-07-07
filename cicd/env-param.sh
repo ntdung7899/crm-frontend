@@ -13,7 +13,7 @@
 
 export image_name="registry.gitlab.com/meu-solutions/crm-frontend"
 export environment_name="production"
-export env_file="/home/gitlab-runner/crm-frontend/.env"
+export env_file="/home/gitlab-runner/env/crm-frontend/.env"
 
 export health_check_retries="36"
 export health_check_interval="5"
