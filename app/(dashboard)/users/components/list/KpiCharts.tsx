@@ -1,12 +1,12 @@
 import { useMemo } from 'react';
 import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   PieChart, Pie, Cell 
 } from 'recharts';
-import { KPI } from '@/types/kpi';
+import { TeamKpiMember } from '@/types/kpi';
 
 interface KpiChartsProps {
-    kpis: KPI[];
+    kpis: TeamKpiMember[];
 }
 
 const COLORS = {
@@ -17,17 +17,27 @@ const COLORS = {
 };
 
 export function KpiCharts({ kpis }: KpiChartsProps) {
-    // Prepare data for BarChart (Completion Percentage)
+    const kpisWithTarget = useMemo(() => kpis.filter(k => k.target !== null), [kpis]);
+
+    // Prepare data for BarChart (Average Completion Percentage)
     const barData = useMemo(() => {
-        return kpis.map(kpi => ({
-            name: kpi.kpi_name.length > 20 ? kpi.kpi_name.substring(0, 20) + '...' : kpi.kpi_name,
-            fullName: kpi.kpi_name,
-            user: kpi.user_full_name,
-            'Hoàn thành (%)': Math.min(kpi.completion_percentage, 150), // Cap at 150% for display
-            originalPercentage: kpi.completion_percentage,
-            fill: COLORS[kpi.status as keyof typeof COLORS] || COLORS.IN_PROGRESS
-        })).sort((a, b) => b.originalPercentage - a.originalPercentage);
-    }, [kpis]);
+        return kpisWithTarget.map(kpi => {
+            const averageRate = kpi.achievement ? (kpi.achievement.revenue_rate + kpi.achievement.new_customers_rate + kpi.achievement.jobs_completed_rate) / 3 : 0;
+            let status = 'IN_PROGRESS';
+            if (averageRate >= 120) status = 'OVERACHIEVED';
+            else if (averageRate >= 100) status = 'COMPLETED';
+            else if (averageRate < 50) status = 'FAILED';
+
+            return {
+                name: kpi.full_name.length > 20 ? kpi.full_name.substring(0, 20) + '...' : kpi.full_name,
+                fullName: kpi.full_name,
+                email: kpi.email,
+                'Hoàn thành (%)': Math.min(averageRate, 150), // Cap at 150% for display
+                originalPercentage: averageRate.toFixed(1),
+                fill: COLORS[status as keyof typeof COLORS] || COLORS.IN_PROGRESS
+            };
+        }).sort((a, b) => Number(b.originalPercentage) - Number(a.originalPercentage));
+    }, [kpisWithTarget]);
 
     // Prepare data for PieChart (Status Distribution)
     const pieData = useMemo(() => {
@@ -38,10 +48,12 @@ export function KpiCharts({ kpis }: KpiChartsProps) {
             FAILED: 0
         };
         
-        kpis.forEach(kpi => {
-            if (kpi.status in counts) {
-                counts[kpi.status as keyof typeof counts]++;
-            }
+        kpisWithTarget.forEach(kpi => {
+            const averageRate = kpi.achievement ? (kpi.achievement.revenue_rate + kpi.achievement.new_customers_rate + kpi.achievement.jobs_completed_rate) / 3 : 0;
+            if (averageRate >= 120) counts.OVERACHIEVED++;
+            else if (averageRate >= 100) counts.COMPLETED++;
+            else if (averageRate < 50) counts.FAILED++;
+            else counts.IN_PROGRESS++;
         });
 
         return [
@@ -50,7 +62,7 @@ export function KpiCharts({ kpis }: KpiChartsProps) {
             { name: 'Đang thực hiện', value: counts.IN_PROGRESS, color: COLORS.IN_PROGRESS },
             { name: 'Không đạt', value: counts.FAILED, color: COLORS.FAILED }
         ].filter(item => item.value > 0);
-    }, [kpis]);
+    }, [kpisWithTarget]);
 
     const CustomTooltip = ({ active, payload }: any) => {
         if (active && payload && payload.length) {
@@ -58,9 +70,9 @@ export function KpiCharts({ kpis }: KpiChartsProps) {
             return (
                 <div className="bg-white p-3 border border-gray-100 shadow-lg rounded-lg">
                     <p className="font-semibold text-gray-900 text-sm mb-1">{data.fullName}</p>
-                    <p className="text-xs text-gray-500 mb-2">Phụ trách: {data.user}</p>
+                    <p className="text-xs text-gray-500 mb-2">{data.email}</p>
                     <p className="text-sm text-primary-600 font-medium">
-                        Tiến độ: {data.originalPercentage}%
+                        Tiến độ trung bình: {data.originalPercentage}%
                     </p>
                 </div>
             );
@@ -68,13 +80,27 @@ export function KpiCharts({ kpis }: KpiChartsProps) {
         return null;
     };
 
-    if (kpis.length === 0) return null;
+    if (kpisWithTarget.length === 0) {
+        return (
+            <div className="p-8 text-center border-b border-gray-100 bg-gray-50/50">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gray-100 mb-4">
+                    <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                </div>
+                <h3 className="text-lg font-medium text-gray-900">Chưa có dữ liệu thống kê</h3>
+                <p className="mt-2 text-sm text-gray-500 max-w-md mx-auto">
+                    Hiện tại chưa có nhân sự nào được giao mục tiêu KPI (hoặc dữ liệu chưa được cập nhật). Hãy tiến hành giao mục tiêu để xem biểu đồ thống kê tổng quát.
+                </p>
+            </div>
+        );
+    }
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 p-5 border-b border-gray-100 bg-gray-50/50">
             {/* Bar Chart: Tiến độ các chỉ tiêu */}
             <div className="lg:col-span-2 bg-white p-5 rounded-xl border border-gray-100 shadow-sm flex flex-col">
-                <h3 className="text-base font-semibold text-gray-900 mb-6">Tiến độ các chỉ tiêu</h3>
+                <h3 className="text-base font-semibold text-gray-900 mb-6">Tiến độ nhân sự (Trung bình 3 chỉ số)</h3>
                 <div className="w-full overflow-x-auto overflow-y-hidden pb-2">
                     <div style={{ width: barData.length > 6 ? `${barData.length * 100}px` : '100%', height: '280px' }}>
                         <ResponsiveContainer width="100%" height="100%">
@@ -131,7 +157,7 @@ export function KpiCharts({ kpis }: KpiChartsProps) {
                                 ))}
                             </Pie>
                             <Tooltip 
-                                formatter={(value: any) => [`${value} KPI`, 'Số lượng']}
+                                formatter={(value: any) => [`${value} Nhân sự`, 'Số lượng']}
                                 contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                             />
                         </PieChart>
@@ -139,8 +165,8 @@ export function KpiCharts({ kpis }: KpiChartsProps) {
                     
                     {/* Absolute center text */}
                     <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                        <span className="text-3xl font-bold text-gray-900">{kpis.length}</span>
-                        <span className="text-xs text-gray-500">Tổng KPI</span>
+                        <span className="text-3xl font-bold text-gray-900">{kpisWithTarget.length}</span>
+                        <span className="text-xs text-gray-500">Nhân sự có KPI</span>
                     </div>
                 </div>
                 

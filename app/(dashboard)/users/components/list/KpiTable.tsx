@@ -1,10 +1,10 @@
 import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
-import { KPI } from "@/types/kpi";
+import { TeamKpiMember } from "@/types/kpi";
 
 interface KpiTableProps {
-    kpis: KPI[];
-    onSort?: (key: keyof KPI) => void;
-    sortConfig?: { key: keyof KPI, direction: 'asc' | 'desc' } | null;
+    kpis: TeamKpiMember[];
+    onSort?: (key: keyof TeamKpiMember | "average_rate") => void;
+    sortConfig?: { key: string, direction: 'asc' | 'desc' } | null;
 }
 
 export function KpiTable({ kpis, onSort, sortConfig }: KpiTableProps) {
@@ -38,14 +38,27 @@ export function KpiTable({ kpis, onSort, sortConfig }: KpiTableProps) {
         return "bg-sky-500";
     };
 
-    const SortableHeader = ({ label, sortKey, align = "left" }: { label: string; sortKey: keyof KPI; align?: "left" | "right" | "center" }) => {
+    const calculateAverageRate = (kpi: TeamKpiMember) => {
+        if (!kpi.achievement) return 0;
+        return (kpi.achievement.revenue_rate + kpi.achievement.new_customers_rate + kpi.achievement.jobs_completed_rate) / 3;
+    };
+
+    const calculateStatus = (average: number) => {
+        if (average === 0) return "IN_PROGRESS";
+        if (average >= 120) return "OVERACHIEVED";
+        if (average >= 100) return "COMPLETED";
+        if (average < 50) return "FAILED";
+        return "IN_PROGRESS";
+    };
+
+    const SortableHeader = ({ label, sortKey, align = "left" }: { label: string; sortKey: string; align?: "left" | "right" | "center" }) => {
         const isActive = sortConfig?.key === sortKey;
         return (
             <th 
-                className={`px-6 py-4 font-semibold cursor-pointer select-none hover:bg-gray-100 transition-colors ${
+                className={`px-4 py-4 font-semibold cursor-pointer select-none hover:bg-gray-100 transition-colors ${
                     align === "right" ? "text-right whitespace-nowrap" : ""
                 }`}
-                onClick={() => onSort?.(sortKey)}
+                onClick={() => onSort?.(sortKey as any)}
             >
                 <div className={`flex items-center gap-1.5 ${align === "right" ? "justify-end" : ""}`}>
                     {label}
@@ -61,74 +74,95 @@ export function KpiTable({ kpis, onSort, sortConfig }: KpiTableProps) {
 
     return (
         <div className="w-full overflow-x-auto">
-            <table className="w-full text-left text-sm text-gray-600">
+            <table className="w-full text-left text-sm text-gray-600 min-w-[1000px]">
                 <thead className="bg-gray-50 text-gray-900 border-b border-gray-200">
                     <tr>
-                        <SortableHeader label="Tên KPI" sortKey="kpi_name" />
-                        <SortableHeader label="Nhân sự" sortKey="user_full_name" />
-                        <th className="px-6 py-4 font-semibold">Chu kỳ</th>
-                        <SortableHeader label="Mục tiêu" sortKey="target_value" align="right" />
-                        <SortableHeader label="Thực tế" sortKey="current_value" align="right" />
-                        <th className="px-6 py-4 font-semibold">Phân loại</th>
-                        <SortableHeader label="Tiến độ" sortKey="completion_percentage" />
-                        <th className="px-6 py-4 font-semibold">Trạng thái</th>
+                        <SortableHeader label="Nhân sự" sortKey="full_name" />
+                        <SortableHeader label="Doanh thu" sortKey="actual_revenue" align="right" />
+                        <th className="px-4 py-4 font-semibold text-right">Khách hàng</th>
+                        <th className="px-4 py-4 font-semibold text-right">Công việc</th>
+                        <SortableHeader label="Tiến độ (TB)" sortKey="average_rate" />
+                        <SortableHeader label="Trạng thái" sortKey="status" />
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                    {kpis.map((kpi) => (
-                        <tr key={kpi.id} className="transition-colors hover:bg-gray-50/50">
-                            <td className="px-6 py-4">
-                                <div className="font-medium text-gray-900">{kpi.kpi_name}</div>
-                                {kpi.description && (
-                                    <div className="text-xs text-gray-500 mt-1 line-clamp-1">{kpi.description}</div>
-                                )}
-                            </td>
-                            <td className="px-6 py-4">
-                                <div className="font-medium text-gray-900">{kpi.user_full_name}</div>
-                                <div className="text-xs text-gray-500">{kpi.user_role}</div>
-                            </td>
-                            <td className="px-6 py-4">
-                                <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-600 ring-1 ring-inset ring-gray-500/10">
-                                    {kpi.period_type === "MONTHLY" ? `Tháng ${kpi.period}` : 
-                                     kpi.period_type === "QUARTERLY" ? `Quý ${kpi.period}` : `Năm`} / {kpi.year}
-                                </span>
-                            </td>
-                            <td className="px-6 py-4 text-right font-medium">
-                                {kpi.target_value.toLocaleString("vi-VN")} <span className="text-xs text-gray-500">{kpi.unit}</span>
-                            </td>
-                            <td className="px-6 py-4 text-right font-medium text-gray-900">
-                                {kpi.current_value.toLocaleString("vi-VN")}
-                            </td>
-                            <td className="px-6 py-4">
-                                <span className={`inline-flex items-center rounded-md px-2 py-1 text-xs font-medium ring-1 ring-inset ${
-                                    kpi.kpi_type === 'AUTOMATIC' 
-                                        ? 'bg-blue-50 text-blue-700 ring-blue-600/20' 
-                                        : 'bg-gray-50 text-gray-700 ring-gray-600/20'
-                                }`}>
-                                    {kpi.kpi_type === 'AUTOMATIC' ? 'Tự động' : 'Thủ công'}
-                                </span>
-                                {kpi.related_module && (
-                                    <div className="text-xs text-gray-500 mt-1 uppercase">{kpi.related_module}</div>
-                                )}
-                            </td>
-                            <td className="px-6 py-4 w-48">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex-1 h-2 w-full bg-gray-100 rounded-full overflow-hidden">
-                                        <div 
-                                            className={`h-full rounded-full transition-all duration-500 ${getProgressBarColor(kpi.completion_percentage, kpi.status)}`}
-                                            style={{ width: `${Math.min(100, kpi.completion_percentage)}%` }}
-                                        />
-                                    </div>
-                                    <span className="text-xs font-medium w-9 text-right">{kpi.completion_percentage}%</span>
-                                </div>
-                            </td>
-                            <td className="px-6 py-4">
-                                <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset ${getStatusStyles(kpi.status)}`}>
-                                    {getStatusLabel(kpi.status)}
-                                </span>
+                    {kpis.length === 0 ? (
+                        <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400 h-[300px] align-middle">
+                                Không có dữ liệu nhân sự nào để hiển thị.
                             </td>
                         </tr>
-                    ))}
+                    ) : (
+                        kpis.map((kpi) => {
+                            const averageRate = calculateAverageRate(kpi);
+                            const status = calculateStatus(averageRate);
+
+                        return (
+                        <tr key={kpi.user_id} className="transition-colors hover:bg-gray-50/50">
+                            <td className="px-4 py-4">
+                                <div className="font-medium text-gray-900">{kpi.full_name}</div>
+                                <div className="text-xs text-gray-500">{kpi.email}</div>
+                            </td>
+                            <td className="px-4 py-4 text-right">
+                                {kpi.target ? (
+                                    <>
+                                        <div className="font-medium text-gray-900">{kpi.actual.revenue.toLocaleString("vi-VN")}</div>
+                                        <div className="text-xs text-gray-500">/ {Number(kpi.target.target_revenue).toLocaleString("vi-VN")}</div>
+                                    </>
+                                ) : (
+                                    <span className="text-gray-400 italic">Chưa giao</span>
+                                )}
+                            </td>
+                            <td className="px-4 py-4 text-right">
+                                {kpi.target ? (
+                                    <>
+                                        <div className="font-medium text-gray-900">{kpi.actual.new_customers}</div>
+                                        <div className="text-xs text-gray-500">/ {kpi.target.target_new_customers}</div>
+                                    </>
+                                ) : (
+                                    <span className="text-gray-400 italic">Chưa giao</span>
+                                )}
+                            </td>
+                            <td className="px-4 py-4 text-right">
+                                {kpi.target ? (
+                                    <>
+                                        <div className="font-medium text-gray-900">{kpi.actual.jobs_completed}</div>
+                                        <div className="text-xs text-gray-500">/ {kpi.target.target_jobs_completed}</div>
+                                    </>
+                                ) : (
+                                    <span className="text-gray-400 italic">Chưa giao</span>
+                                )}
+                            </td>
+                            <td className="px-4 py-4 w-48">
+                                {kpi.target ? (
+                                    <div className="flex items-center gap-3">
+                                        <div className="flex-1 h-2 w-full bg-gray-100 rounded-full overflow-hidden">
+                                            <div 
+                                                className={`h-full rounded-full transition-all duration-500 ${getProgressBarColor(averageRate, status)}`}
+                                                style={{ width: `${Math.min(100, averageRate)}%` }}
+                                            />
+                                        </div>
+                                        <span className="text-xs font-medium w-10 text-right">{averageRate.toFixed(1)}%</span>
+                                    </div>
+                                ) : (
+                                    <span className="text-gray-400 text-xs italic">N/A</span>
+                                )}
+                            </td>
+                            <td className="px-4 py-4">
+                                {kpi.target ? (
+                                    <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset ${getStatusStyles(status)}`}>
+                                        {getStatusLabel(status)}
+                                    </span>
+                                ) : (
+                                    <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset bg-gray-50 text-gray-600 ring-gray-500/10">
+                                        Chưa có KPI
+                                    </span>
+                                )}
+                            </td>
+                        </tr>
+                        );
+                    })
+                    )}
                 </tbody>
             </table>
         </div>

@@ -30,6 +30,7 @@ export function UserListView() {
     } = useUsersPage();
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+    const [kpiCount, setKpiCount] = useState(0);
 
     useEffect(() => {
         setCurrentPage(1);
@@ -83,16 +84,16 @@ export function UserListView() {
                 <StatCard icon={<Users className="h-6 w-6" />} label="Worker" value={roleCounts.worker} note="Tài khoản" className="bg-blue-50 text-blue-600" />
             </div>
 
-            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+            <div className="rounded-xl border border-gray-200 bg-white shadow-sm">
                 <div className="flex flex-wrap gap-6 border-b border-gray-100 px-4">
                     <FilterTab id="all" label="Tất cả" count={filterCounts.all || 0} activeFilter={activeFilter} onChange={setActiveFilter} />
                     <FilterTab id="active" label="Đang hoạt động" count={filterCounts.active || 0} activeFilter={activeFilter} onChange={setActiveFilter} />
                     <FilterTab id="inactive" label="Ngưng hoạt động" count={filterCounts.inactive || 0} activeFilter={activeFilter} onChange={setActiveFilter} />
-                    <FilterTab id="kpi" label="KPI" count={6} activeFilter={activeFilter} onChange={setActiveFilter} />
+                    <FilterTab id="kpi" label="KPI" count={kpiCount} activeFilter={activeFilter} onChange={setActiveFilter} />
                 </div>
 
                 {activeFilter === "kpi" ? (
-                    <KpiTabContent />
+                    <KpiTabContent onKpisLoaded={setKpiCount} />
                 ) : (
                     <>
                         <div className="grid grid-cols-1 gap-4 border-b border-gray-100 p-5 xl:grid-cols-[1fr_320px_320px_auto_auto] xl:items-end">
