@@ -19,6 +19,10 @@ import {
     CreateAdminPayload,
     CreateAdminUsersResponse,
     PaginatedParams,
+    RequestDeleteOtpPayload,
+    RequestDeleteOtpResponse,
+    ConfirmDeleteUserPayload,
+    ConfirmDeleteUserResponse,
 } from "@/types/api";
 
 const USERS_ENDPOINT = "/api/v1.0/users";
@@ -29,6 +33,8 @@ const USERS_CUSTOMER_TAG_STAT_ENDPOINT = "/api/v1.0/users/customerTagStatistic";
 const USERS_EXPORT_ENDPOINT = "/api/v1.0/users/export";
 const USERS_IMPORT_ENDPOINT = "/api/v1.0/users/import";
 const USERS_ADMIN_ENDPOINT = "/api/v1.0/users/my_emloyee";
+const USERS_REQUEST_DELETE_OTP_ENDPOINT = "/api/v1.0/users/requestDeleteOTP";
+const USERS_CONFIRM_DELETE_ENDPOINT = "/api/v1.0/users/confirmDeleteUser";
 
 export const usersService = {
     async getMyInfo(): Promise<GetMyInfoResponse> {
@@ -81,5 +87,13 @@ export const usersService = {
 
     async createAdminUsers(users: CreateAdminPayload[], code: string): Promise<CreateAdminUsersResponse> {
         return apiClient.post<CreateAdminUsersResponse>(`${USERS_ADMIN_ENDPOINT}?code=${encodeURIComponent(code)}`, users);
+    },
+
+    async requestDeleteOtp(payload: RequestDeleteOtpPayload): Promise<RequestDeleteOtpResponse> {
+        return apiClient.post<RequestDeleteOtpResponse>(USERS_REQUEST_DELETE_OTP_ENDPOINT, payload);
+    },
+
+    async confirmDeleteUser(payload: ConfirmDeleteUserPayload): Promise<ConfirmDeleteUserResponse> {
+        return apiClient.post<ConfirmDeleteUserResponse>(USERS_CONFIRM_DELETE_ENDPOINT, payload);
     },
 };

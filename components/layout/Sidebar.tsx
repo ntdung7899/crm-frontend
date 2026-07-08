@@ -73,6 +73,7 @@ const sections: NavSection[] = [
         name: "Marketing",
         icon: FiGlobe,
         children: [
+          { name: "Email Marketing", href: "/marketing/email-marketing" },
           { name: "Landing Page", href: "/marketing/landing-page" },
         ],
       },

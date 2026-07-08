@@ -190,6 +190,16 @@ export interface ForgotPasswordPayload {
   email: string;
 }
 
+// ── Delete account (OTP) ───────────────────────────────────────────
+export interface RequestDeleteOtpPayload {
+  email: string;
+}
+
+export interface ConfirmDeleteUserPayload {
+  email: string;
+  otp: string;
+}
+
 // ── Paginated list helpers ─────────────────────────────────────────
 export interface PaginatedParams {
   currentPage?: string;
@@ -883,6 +893,8 @@ export type GetUserResponse = ApiEnvelope<UserApiRow>;
 export type CreateUsersResponse = ApiEnvelope<UserApiRow[]>;
 export type UpdateUserResponse = ApiEnvelope<UserApiRow>;
 export type DeleteUserResponse = ApiEnvelope<null>;
+export type RequestDeleteOtpResponse = ApiEnvelope<{ email: string }>;
+export type ConfirmDeleteUserResponse = ApiEnvelope<{ email: string; deleted_at: string }>;
 export type GetCustomersResponse = ApiEnvelope<PaginatedRows<UserApiRow>>;
 export type GetCustomerListResponse = ApiEnvelope<PaginatedRows<CustomerApiRow>>;
 export type GetCustomerResponse = ApiEnvelope<CustomerApiRow>;
