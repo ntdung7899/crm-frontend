@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ArrowDown, ArrowUp, ArrowUpDown, Edit3 } from "lucide-react";
 import { TeamKpiMember } from "@/types/kpi";
 
 interface KpiTableProps {
@@ -6,9 +6,11 @@ interface KpiTableProps {
     onSort?: (key: keyof TeamKpiMember | "average_rate") => void;
     sortConfig?: { key: string, direction: 'asc' | 'desc' } | null;
     isPeriodOver?: boolean;
+    onEditTarget?: (kpi: TeamKpiMember) => void;
+    canEditTarget?: (userId: string) => boolean;
 }
 
-export function KpiTable({ kpis, onSort, sortConfig, isPeriodOver = false }: KpiTableProps) {
+export function KpiTable({ kpis, onSort, sortConfig, isPeriodOver = false, onEditTarget, canEditTarget }: KpiTableProps) {
     const getStatusStyles = (status: string) => {
         switch (status) {
             case "COMPLETED":
@@ -83,12 +85,13 @@ export function KpiTable({ kpis, onSort, sortConfig, isPeriodOver = false }: Kpi
                         <th className="px-4 py-4 font-semibold text-right">Công việc</th>
                         <SortableHeader label="Tiến độ" sortKey="average_rate" />
                         <SortableHeader label="Trạng thái" sortKey="status" />
+                        <th className="px-4 py-4 font-semibold text-right">Thao tác</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                     {kpis.length === 0 ? (
                         <tr>
-                            <td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-400 h-[300px] align-middle">
+                            <td colSpan={7} className="px-4 py-8 text-center text-sm text-gray-400 h-[300px] align-middle">
                                 Không có dữ liệu nhân sự nào để hiển thị.
                             </td>
                         </tr>
@@ -157,6 +160,17 @@ export function KpiTable({ kpis, onSort, sortConfig, isPeriodOver = false }: Kpi
                                     <span className="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ring-1 ring-inset bg-gray-50 text-gray-600 ring-gray-500/10">
                                         Chưa có KPI
                                     </span>
+                                )}
+                            </td>
+                            <td className="px-4 py-4 text-right">
+                                {kpi.target && canEditTarget?.(kpi.user_id) && (
+                                    <button 
+                                        onClick={() => onEditTarget?.(kpi)}
+                                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-900 transition"
+                                        title="Chỉnh sửa mục tiêu"
+                                    >
+                                        <Edit3 className="h-4 w-4" />
+                                    </button>
                                 )}
                             </td>
                         </tr>

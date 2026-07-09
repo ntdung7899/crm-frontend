@@ -7,6 +7,7 @@ import { TeamKpiMember } from '@/types/kpi';
 
 interface KpiChartsProps {
     kpis: TeamKpiMember[];
+    isPeriodOver: boolean;
 }
 
 const COLORS = {
@@ -16,7 +17,7 @@ const COLORS = {
     FAILED: '#ef4444'        // red-500
 };
 
-export function KpiCharts({ kpis }: KpiChartsProps) {
+export function KpiCharts({ kpis, isPeriodOver }: KpiChartsProps) {
     const kpisWithTarget = useMemo(() => kpis.filter(k => k.target !== null), [kpis]);
 
     // Prepare data for BarChart (Average Completion Percentage)
@@ -26,7 +27,7 @@ export function KpiCharts({ kpis }: KpiChartsProps) {
             let status = 'IN_PROGRESS';
             if (averageRate >= 120) status = 'OVERACHIEVED';
             else if (averageRate >= 100) status = 'COMPLETED';
-            else if (averageRate < 50) status = 'FAILED';
+            else if (isPeriodOver) status = 'FAILED';
 
             return {
                 name: kpi.full_name.length > 20 ? kpi.full_name.substring(0, 20) + '...' : kpi.full_name,
@@ -52,7 +53,7 @@ export function KpiCharts({ kpis }: KpiChartsProps) {
             const averageRate = kpi.achievement ? (kpi.achievement.revenue_rate + kpi.achievement.new_customers_rate + kpi.achievement.jobs_completed_rate) / 3 : 0;
             if (averageRate >= 120) counts.OVERACHIEVED++;
             else if (averageRate >= 100) counts.COMPLETED++;
-            else if (averageRate < 50) counts.FAILED++;
+            else if (isPeriodOver) counts.FAILED++;
             else counts.IN_PROGRESS++;
         });
 

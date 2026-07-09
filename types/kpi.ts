@@ -10,6 +10,7 @@ export interface KpiActual {
 }
 
 export interface KpiTarget {
+  target_id?: string;
   target_revenue: string | number; // Note: API returns it as string e.g., "20000000.00"
   target_new_customers: number;
   target_jobs_completed: number;

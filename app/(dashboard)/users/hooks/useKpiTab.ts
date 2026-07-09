@@ -3,13 +3,75 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import { TeamKpiMember } from "@/types/kpi";
 import { kpiService } from "@/services/kpis";
+import { getCurrentUserSession } from "@/lib/auth-session";
+import { usersService } from "@/services/users";
+import { useCallback } from "react";
 
 export function useKpiTab(onKpisLoaded?: (count: number) => void) {
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [editingKpiMember, setEditingKpiMember] = useState<TeamKpiMember | null>(null);
+    const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
+
+    const [isWorkerRole] = useState(() => {
+        if (typeof window === 'undefined') return false;
+        const user = getCurrentUserSession();
+        if (!user) return true;
+        const hasHigherRole = user.user_permisions?.some(p => {
+            const name = (p.permision.name || "").toLowerCase();
+            return name.includes("owner") || name.includes("leader");
+        });
+        return !hasHigherRole;
+    });
+
+    const [viewMode, setViewMode] = useState<'team' | 'my'>(isWorkerRole ? 'my' : 'team');
+
+    const [userRolesByUser, setUserRolesByUser] = useState<Record<string, string[]>>({});
+    useEffect(() => {
+        if (!isWorkerRole) {
+            usersService.getAdminUsers({ pageSize: "1000" }).then(res => {
+                const rows = res.responseData?.rows || [];
+                const rolesMap: Record<string, string[]> = {};
+                for (const r of rows) {
+                    rolesMap[r.id] = (r.user_permisions || []).map(up => (up.permision.name || "").toLowerCase());
+                }
+                setUserRolesByUser(rolesMap);
+            }).catch(console.error);
+        }
+    }, [isWorkerRole]);
+
+    const canEditKpiTarget = useCallback((targetUserId: string) => {
+        if (isWorkerRole) return false;
+        
+        const currentUser = getCurrentUserSession();
+        const myId = currentUser?.id || "";
+        const myRoles = currentUser?.user_permisions?.map(p => (p.permision.name || "").toLowerCase()) || [];
+        const isOwner = myRoles.some(r => r.includes("owner"));
+        const isLeader = myRoles.some(r => r.includes("leader"));
+
+        const targetRoles = userRolesByUser[targetUserId] || [];
+        const tIsOwner = targetRoles.some(r => r.includes("owner"));
+        const tIsLeader = targetRoles.some(r => r.includes("leader"));
+        const tIsWorker = !tIsOwner && !tIsLeader;
+
+        if (isOwner) {
+            if (targetUserId === myId) return true; // Can edit own
+            if (tIsOwner) return false; // Cannot edit other owner
+            return true; // Can edit leader and worker
+        }
+        
+        if (isLeader) {
+            if (targetUserId === myId) return false; // Leader cannot edit own
+            if (tIsLeader) return false; // Cannot edit other leader
+            if (tIsOwner) return false; // Cannot edit owner
+            if (tIsWorker) return true; // Can edit worker
+        }
+
+        return false;
+    }, [isWorkerRole, userRolesByUser]);
 
     // Filter states (Applied)
     const [appliedYear, setAppliedYear] = useState(new Date().getFullYear());
@@ -29,13 +91,80 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
     const fetchKpis = async () => {
         setIsLoading(true);
         try {
-            const res = await kpiService.getTeamKpis(appliedYear, appliedPeriodType, appliedPeriodValue);
-            if (res.status === "success" && res.responseData?.team) {
-                setKpis(res.responseData.team);
-                onKpisLoaded?.(res.responseData.team.length);
+            if (viewMode === 'team') {
+                const res = await kpiService.getTeamKpis(appliedYear, appliedPeriodType, appliedPeriodValue);
+                if (res.status === "success" && res.responseData?.team) {
+                    setKpis(res.responseData.team);
+                    onKpisLoaded?.(res.responseData.team.length);
+                } else {
+                    setKpis([]);
+                    onKpisLoaded?.(0);
+                }
             } else {
-                setKpis([]);
-                onKpisLoaded?.(0);
+                const res = await kpiService.getMyKpiSummary(appliedYear, appliedPeriodType, appliedPeriodValue);
+                if (res.status === "success" && res.responseData) {
+                    const data = Array.isArray(res.responseData) ? res.responseData : (res.responseData.rows || res.responseData.data || [res.responseData]);
+                    
+                    const now = new Date();
+                    const currentYear = now.getFullYear();
+                    const currentMonth = now.getMonth() + 1;
+                    const currentQuarter = Math.ceil(currentMonth / 3);
+
+                    const mapped = data.map((item: any, idx: number) => {
+                        const period = item.period || {};
+                        const pType = period.type || "month";
+                        const pValue = period.value || 1;
+                        const pYear = period.year || currentYear;
+                        const typeLabel = pType === "quarter" ? "Quý" : "Tháng";
+                        
+                        let isRowPeriodOver = false;
+                        if (pYear < currentYear) isRowPeriodOver = true;
+                        else if (pYear === currentYear) {
+                            if (pType === "month" && pValue < currentMonth) isRowPeriodOver = true;
+                            if (pType === "quarter" && pValue < currentQuarter) isRowPeriodOver = true;
+                        }
+
+                        const t = item.target || {};
+                        const targetRev = Number(t.target_revenue || 0);
+                        const targetCus = Number(t.target_new_customers || 0);
+                        const targetJob = Number(t.target_jobs_completed || 0);
+
+                        const a = item.actual || {};
+                        const actualRev = Number(a.revenue || 0);
+                        const actualCus = Number(a.new_customers || 0);
+                        const actualJob = Number(a.jobs_completed || 0);
+
+                        return {
+                            user_id: item.user_id || item.id || String(idx),
+                            full_name: `${typeLabel} ${pValue} / ${pYear}`,
+                            email: "KPI Cá nhân",
+                            avatar: null,
+                            target: item.target ? {
+                                target_id: t.target_id || t.id,
+                                target_revenue: targetRev,
+                                target_new_customers: targetCus,
+                                target_jobs_completed: targetJob,
+                            } : null,
+                            actual: {
+                                revenue: actualRev,
+                                new_customers: actualCus,
+                                jobs_completed: actualJob
+                            },
+                            achievement: item.achievement || {
+                                revenue_rate: targetRev ? (actualRev / targetRev) * 100 : 0,
+                                new_customers_rate: targetCus ? (actualCus / targetCus) * 100 : 0,
+                                jobs_completed_rate: targetJob ? (actualJob / targetJob) * 100 : 0
+                            },
+                            is_period_over: isRowPeriodOver
+                        }
+                    });
+
+                    setKpis(mapped);
+                    onKpisLoaded?.(mapped.length);
+                } else {
+                    setKpis([]);
+                    onKpisLoaded?.(0);
+                }
             }
         } catch (error) {
             console.error("Failed to fetch KPIs:", error);
@@ -48,7 +177,7 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
 
     useEffect(() => {
         fetchKpis();
-    }, [appliedYear, appliedPeriodType, appliedPeriodValue]);
+    }, [appliedYear, appliedPeriodType, appliedPeriodValue, viewMode]);
 
     const isPeriodOver = useMemo(() => {
         const now = new Date();
@@ -78,10 +207,11 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
             if (appliedStatusFilter !== "ALL") {
                 const averageRate = kpi.achievement ? (kpi.achievement.revenue_rate + kpi.achievement.new_customers_rate + kpi.achievement.jobs_completed_rate) / 3 : 0;
                 let status = "IN_PROGRESS";
+                const isOver = (kpi as any).is_period_over !== undefined ? (kpi as any).is_period_over : isPeriodOver;
                 if (!kpi.target) status = "NO_KPI";
                 else if (averageRate >= 120) status = "OVERACHIEVED";
                 else if (averageRate >= 100) status = "COMPLETED";
-                else if (isPeriodOver) status = "FAILED";
+                else if (isOver) status = "FAILED";
                 else status = "IN_PROGRESS";
                 
                 matchesStatus = status === appliedStatusFilter;
@@ -103,11 +233,12 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
                     bValue = b.target ? b.actual?.revenue || 0 : -1;
                 } else if (sortConfig.key === 'status') {
                     const getStatusScore = (kpi: any) => {
+                        const isOver = kpi.is_period_over !== undefined ? kpi.is_period_over : isPeriodOver;
                         if (!kpi.target) return 0; // Chưa có KPI
                         const avg = kpi.achievement ? (kpi.achievement.revenue_rate + kpi.achievement.new_customers_rate + kpi.achievement.jobs_completed_rate) / 3 : 0;
                         if (avg >= 120) return 4; // Vượt
                         if (avg >= 100) return 3; // Đạt
-                        if (isPeriodOver) return 1; // Không đạt
+                        if (isOver) return 1; // Không đạt
                         return 2; // Đang thực hiện
                     };
                     aValue = getStatusScore(a);
@@ -235,6 +366,10 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
         fetchKpis,
         handleExport,
         
+        viewMode,
+        setViewMode,
+        isWorkerRole,
+        
         currentPage,
         setCurrentPage,
         pageSize,
@@ -265,6 +400,13 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
         setDraftStatusFilter,
         
         isCreateModalOpen,
-        setIsCreateModalOpen
+        setIsCreateModalOpen,
+
+        editingKpiMember,
+        setEditingKpiMember,
+        isUpdateModalOpen,
+        setIsUpdateModalOpen,
+        canEditKpiTarget,
+        userRolesByUser
     };
 }
