@@ -115,7 +115,7 @@ export function KpiTabContent({ onKpisLoaded }: KpiTabContentProps) {
                 initialPeriodType={kpiTabState.appliedPeriodType as any}
                 initialPeriodValue={kpiTabState.appliedPeriodValue}
                 initialYear={kpiTabState.appliedYear}
-                teamMembers={kpiTabState.kpis}
+                teamMembers={kpiTabState.kpis.filter(member => kpiTabState.canEditKpiTarget(member.user_id))}
             />
 
             <UpdateKpiModal

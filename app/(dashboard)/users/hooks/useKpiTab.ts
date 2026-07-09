@@ -22,7 +22,7 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
         if (!user) return true;
         const hasHigherRole = user.user_permisions?.some(p => {
             const name = (p.permision.name || "").toLowerCase();
-            return name.includes("owner") || name.includes("leader");
+            return name.includes("owner") || name.includes("leader") || name === "site admin" || name.includes("site admin") || name === "admin onsite" || name.includes("admin onsite");
         });
         return !hasHigherRole;
     });
@@ -57,6 +57,9 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
         const tIsLeader = targetRoles.some(r => r.includes("leader"));
         const tIsWorker = !tIsOwner && !tIsLeader;
 
+        const isAdminOnsite = myRoles.some(r => r === "site admin" || r.includes("site admin") || r === "admin onsite" || r.includes("admin onsite"));
+        if (isAdminOnsite) return true;
+
         if (isOwner) {
             if (targetUserId === myId) return true; // Can edit own
             if (tIsOwner) return false; // Cannot edit other owner
@@ -69,6 +72,34 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
             if (tIsOwner) return false; // Cannot edit owner
             if (tIsWorker) return true; // Can edit worker
         }
+
+        return false;
+    }, [isWorkerRole, userRolesByUser]);
+
+    const canViewKpi = useCallback((targetUserId: string) => {
+        const currentUser = getCurrentUserSession();
+        const myId = currentUser?.id || "";
+        
+        if (isWorkerRole) return targetUserId === myId;
+        if (targetUserId === myId) return true; // Everyone can see themselves
+
+        const myRoles = currentUser?.user_permisions?.map(p => (p.permision.name || "").toLowerCase()) || [];
+        const isOwner = myRoles.some(r => r.includes("owner"));
+        const isLeader = myRoles.some(r => r.includes("leader"));
+
+        const hasRolesLoaded = Object.keys(userRolesByUser).length > 0;
+        if (!hasRolesLoaded) return false; // Hide until roles are loaded to prevent flash
+
+        const targetRoles = userRolesByUser[targetUserId] || [];
+        const tIsOwner = targetRoles.some(r => r.includes("owner"));
+        const tIsLeader = targetRoles.some(r => r.includes("leader"));
+        const tIsWorker = !tIsOwner && !tIsLeader;
+
+        const isAdminOnsite = myRoles.some(r => r === "site admin" || r.includes("site admin") || r === "admin onsite" || r.includes("admin onsite"));
+        if (isAdminOnsite) return true;
+
+        if (isOwner) return true;
+        if (isLeader) return tIsWorker;
 
         return false;
     }, [isWorkerRole, userRolesByUser]);
@@ -95,10 +126,8 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
                 const res = await kpiService.getTeamKpis(appliedYear, appliedPeriodType, appliedPeriodValue);
                 if (res.status === "success" && res.responseData?.team) {
                     setKpis(res.responseData.team);
-                    onKpisLoaded?.(res.responseData.team.length);
                 } else {
                     setKpis([]);
-                    onKpisLoaded?.(0);
                 }
             } else {
                 const res = await kpiService.getMyKpiSummary(appliedYear, appliedPeriodType, appliedPeriodValue);
@@ -160,16 +189,13 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
                     });
 
                     setKpis(mapped);
-                    onKpisLoaded?.(mapped.length);
                 } else {
                     setKpis([]);
-                    onKpisLoaded?.(0);
                 }
             }
         } catch (error) {
             console.error("Failed to fetch KPIs:", error);
             setKpis([]);
-            onKpisLoaded?.(0);
         } finally {
             setIsLoading(false);
         }
@@ -199,6 +225,8 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
 
     const filteredKpis = useMemo(() => {
         let result = kpis.filter((kpi) => {
+            if (viewMode === 'team' && !canViewKpi(kpi.user_id)) return false;
+
             const matchesSearch = kpi.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 kpi.email.toLowerCase().includes(searchQuery.toLowerCase());
             
@@ -266,7 +294,13 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
         }
 
         return result;
-    }, [kpis, searchQuery, sortConfig, appliedStatusFilter, appliedPeriodType, appliedPeriodValue, appliedYear, isPeriodOver]);
+    }, [kpis, searchQuery, sortConfig, appliedStatusFilter, appliedPeriodType, appliedPeriodValue, appliedYear, isPeriodOver, canViewKpi, viewMode]);
+
+    useEffect(() => {
+        if (onKpisLoaded) {
+            onKpisLoaded(filteredKpis.length);
+        }
+    }, [filteredKpis.length]);
 
     const handleExport = async () => {
         if (filteredKpis.length === 0) return;
