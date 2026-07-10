@@ -14,6 +14,10 @@ export default function DashboardPage() {
         todayLabel,
         kpiCards,
         growthData,
+        monthlyGrowthData,
+        last30DaysData,
+        lastMonthData,
+        customRangeData,
         leaderboard,
         recentCustomers,
         upcomingTasks,
@@ -42,7 +46,14 @@ export default function DashboardPage() {
 
             <DashboardKpiGrid cards={kpiCards} />
 
-            <DashboardChartsSection growthData={growthData} leaderboard={leaderboard} />
+            <DashboardChartsSection 
+                growthData={growthData} 
+                monthlyGrowthData={monthlyGrowthData} 
+                last30DaysData={last30DaysData}
+                lastMonthData={lastMonthData}
+                customRangeData={customRangeData}
+                leaderboard={leaderboard} 
+            />
 
             <DashboardRecentLists recentCustomers={recentCustomers} upcomingTasks={upcomingTasks} />
         </div>
