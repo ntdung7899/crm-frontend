@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { FiBell, FiBriefcase, FiTrendingUp, FiUsers } from "react-icons/fi";
-import { growthData, performanceData } from "@/mock-data/reports";
+import { growthData, monthlyGrowthData, last30DaysData, lastMonthData, customRangeData, performanceData } from "@/mock-data/reports";
 import { jobsService } from "@/services/jobs";
 import { notificationsService } from "@/services/notifications";
 import { usersService } from "@/services/users";
@@ -248,6 +248,10 @@ export function useDashboardPage() {
         todayLabel,
         kpiCards,
         growthData,
+        monthlyGrowthData,
+        last30DaysData,
+        lastMonthData,
+        customRangeData,
         leaderboard,
         recentCustomers,
         upcomingTasks,
