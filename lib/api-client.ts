@@ -165,31 +165,35 @@ class ApiClient {
     }
   }
 
-  async get<T>(endpoint: string, params?: Record<string, any>): Promise<T> {
+  async get<T>(endpoint: string, params?: Record<string, any>, config?: RequestInit): Promise<T> {
     const queryString = params
       ? "?" + new URLSearchParams(params).toString()
       : "";
     return this.request<T>(`${endpoint}${queryString}`, {
+      ...config,
       method: "GET",
     });
   }
 
-  async post<T>(endpoint: string, data?: any): Promise<T> {
+  async post<T>(endpoint: string, data?: any, config?: RequestInit): Promise<T> {
     return this.request<T>(endpoint, {
+      ...config,
       method: "POST",
       body: JSON.stringify(data),
     });
   }
 
-  async put<T>(endpoint: string, data?: any): Promise<T> {
+  async put<T>(endpoint: string, data?: any, config?: RequestInit): Promise<T> {
     return this.request<T>(endpoint, {
+      ...config,
       method: "PUT",
       body: JSON.stringify(data),
     });
   }
 
-  async patch<T>(endpoint: string, data?: any): Promise<T> {
+  async patch<T>(endpoint: string, data?: any, config?: RequestInit): Promise<T> {
     return this.request<T>(endpoint, {
+      ...config,
       method: "PATCH",
       body: JSON.stringify(data),
     });

@@ -14,7 +14,7 @@ export function useUsersPage() {
     const [users, setUsers] = useState<UserProfile[]>([]);
     const [userRolesByUser, setUserRolesByUser] = useState<Record<string, string[]>>({});
     const [searchQuery, setSearchQuery] = useState("");
-    const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive">("all");
+    const [activeFilter, setActiveFilter] = useState<"all" | "active" | "inactive" | "kpi">("all");
     const [isLoading, setIsLoading] = useState(true);
     const toastRef = useStableToastRef();
     const { requestDeleteConfirmation, DeleteConfirmationDialog } = useDeleteConfirmation();
