@@ -6,9 +6,10 @@ import { Search } from "lucide-react";
 interface TemplateSearchProps {
   value: string;
   onChange: (val: string) => void;
+  placeholder?: string;
 }
 
-export function TemplateSearch({ value, onChange }: TemplateSearchProps) {
+export function TemplateSearch({ value, onChange, placeholder = "Tìm kiếm mẫu email..." }: TemplateSearchProps) {
   return (
     <div className="relative max-w-sm">
       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -16,7 +17,7 @@ export function TemplateSearch({ value, onChange }: TemplateSearchProps) {
       </div>
       <Input
         type="text"
-        placeholder="Tìm kiếm mẫu email..."
+        placeholder={placeholder}
         className="pl-10"
         value={value}
         onChange={(e) => onChange(e.target.value)}
@@ -24,3 +25,4 @@ export function TemplateSearch({ value, onChange }: TemplateSearchProps) {
     </div>
   );
 }
+
