@@ -4,12 +4,11 @@ import { Input } from "@/components/ui/Input";
 import { TextEditor } from "@/components/ui/TextEditor";
 import { Button } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
-import { Select } from "@/components/ui/Select";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
-import { mockCustomers } from "@/mock-data/customers";
 
 interface SendEmailSectionProps {
+  campaignName: string;
+  setCampaignName: (v: string) => void;
   subject: string;
   setSubject: (v: string) => void;
   content: string;
@@ -23,36 +22,36 @@ interface SendEmailSectionProps {
   onSend: () => void;
   isSubmitting: boolean;
   isLoadingTemplate?: boolean;
+  isLoadingData?: boolean;
+  groups: any[];
+  customers: any[];
 }
 
 export function SendEmailSection({
+  campaignName,
+  setCampaignName,
   subject,
   setSubject,
   content,
   setContent,
-  recipientType,
-  setRecipientType,
-  selectedGroup,
-  setSelectedGroup,
   selectedCustomers,
   setSelectedCustomers,
   onSend,
   isSubmitting,
   isLoadingTemplate,
+  isLoadingData,
+  customers,
 }: SendEmailSectionProps) {
   const router = useRouter();
 
-  // Giả lập danh sách nhóm
-  const groupOptions = [
-    { value: "vip", label: "Khách hàng VIP" },
-    { value: "new", label: "Khách hàng mới" },
-    { value: "inactive", label: "Khách hàng không hoạt động (>30 ngày)" },
-  ];
+  // Only display customers who have an email address to prevent SMTP delivery failures
+  const customersWithEmail = customers.filter((c) => c.email);
 
-  if (isLoadingTemplate) {
+  if (isLoadingTemplate || isLoadingData) {
     return (
       <Card className="p-6">
         <div className="animate-pulse space-y-4">
+          <div className="h-10 bg-gray-200 rounded w-full"></div>
           <div className="h-10 bg-gray-200 rounded w-full"></div>
           <div className="h-64 bg-gray-200 rounded w-full"></div>
         </div>
@@ -62,11 +61,18 @@ export function SendEmailSection({
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      {/* Cột trái: Form chỉnh sửa nội dung (2/3 chiều rộng) */}
+      {/* Left Column: Editor & Content (2/3 width) */}
       <div className="lg:col-span-2 space-y-6">
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Nội dung Email</h2>
           <div className="space-y-4">
+            <Input
+              label="Tên chiến dịch email"
+              value={campaignName}
+              onChange={(e) => setCampaignName(e.target.value)}
+              placeholder="Nhập tên chiến dịch (để trống hệ thống sẽ tự sinh)..."
+            />
+            
             <Input
               label="Tiêu đề email (Subject)"
               value={subject}
@@ -87,73 +93,47 @@ export function SendEmailSection({
         </Card>
       </div>
 
-      {/* Cột phải: Chọn đối tượng nhận & Action (1/3 chiều rộng) */}
+      {/* Right Column: Audience selection & Action (1/3 width) */}
       <div className="space-y-6">
         <Card className="p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Người nhận</h2>
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Hình thức gửi</label>
-              <div className="flex items-center space-x-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    className="mr-2 h-4 w-4 text-primary focus:ring-primary border-gray-300"
-                    checked={recipientType === "group"}
-                    onChange={() => setRecipientType("group")}
-                  />
-                  Theo nhóm
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    className="mr-2 h-4 w-4 text-primary focus:ring-primary border-gray-300"
-                    checked={recipientType === "specific"}
-                    onChange={() => setRecipientType("specific")}
-                  />
-                  Khách hàng cụ thể
-                </label>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Chọn khách hàng cụ thể</label>
+              <div className="border border-gray-200 rounded-lg max-h-60 overflow-y-auto p-2 space-y-1 bg-white">
+                {customersWithEmail.length === 0 ? (
+                  <p className="text-sm text-gray-500 p-2 text-center">Không có khách hàng nào có địa chỉ email</p>
+                ) : (
+                  customersWithEmail.map((customer) => {
+                    const fullName = customer.full_name || `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Chưa đặt tên";
+                    return (
+                      <label key={customer.id} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors">
+                        <input
+                          type="checkbox"
+                          className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                          checked={selectedCustomers.includes(customer.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedCustomers([...selectedCustomers, customer.id]);
+                            } else {
+                              setSelectedCustomers(selectedCustomers.filter((id) => id !== customer.id));
+                            }
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{fullName}</p>
+                          <p className="text-xs text-gray-500 truncate">{customer.email}</p>
+                        </div>
+                      </label>
+                    );
+                  })
+                )}
               </div>
+              <p className="text-xs text-gray-500 mt-2 font-medium text-primary">
+                Đã chọn {selectedCustomers.length} khách hàng
+              </p>
             </div>
-
-            {recipientType === "group" ? (
-              <Select
-                label="Chọn nhóm khách hàng"
-                options={groupOptions}
-                value={selectedGroup}
-                onChange={(e) => setSelectedGroup(e.target.value)}
-              />
-            ) : (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Chọn khách hàng cụ thể</label>
-                <div className="border border-gray-200 rounded-lg max-h-60 overflow-y-auto p-2 space-y-1 bg-white">
-                  {mockCustomers.map((customer) => (
-                    <label key={customer.id} className="flex items-center space-x-3 p-2 hover:bg-gray-50 rounded cursor-pointer transition-colors">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-                        checked={selectedCustomers.includes(customer.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedCustomers([...selectedCustomers, customer.id]);
-                          } else {
-                            setSelectedCustomers(selectedCustomers.filter((id) => id !== customer.id));
-                          }
-                        }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{customer.customerName}</p>
-                        <p className="text-xs text-gray-500 truncate">{customer.phone || 'Chưa có SĐT'}</p>
-                      </div>
-                    </label>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-500 mt-2 font-medium text-primary">
-                  Đã chọn {selectedCustomers.length} khách hàng
-                </p>
-              </div>
-            )}
           </div>
         </Card>
 
