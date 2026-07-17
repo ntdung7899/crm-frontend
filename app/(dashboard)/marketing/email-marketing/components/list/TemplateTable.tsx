@@ -2,16 +2,19 @@
 
 import { EmailTemplate } from "@/types/email-marketing";
 import { Button } from "@/components/ui/Button";
+import { useDeleteConfirmation } from "@/components/ui/useDeleteConfirmation";
 import { format } from "date-fns";
 import { Pencil, Trash2, Send } from "lucide-react";
 import Link from "next/link";
 
 interface TemplateTableProps {
   items: EmailTemplate[];
-  onDelete: (id: string) => void;
+  onDelete: (id: string) => void | Promise<void>;
 }
 
 export function TemplateTable({ items, onDelete }: TemplateTableProps) {
+  const { requestDeleteConfirmation, DeleteConfirmationDialog } = useDeleteConfirmation();
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm text-left border-collapse">
@@ -45,9 +48,13 @@ export function TemplateTable({ items, onDelete }: TemplateTableProps) {
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    if (window.confirm("Bạn có chắc chắn muốn xóa mẫu này?")) {
-                      onDelete(item.id);
-                    }
+                    requestDeleteConfirmation({
+                      title: "Xóa mẫu email",
+                      description: `Bạn có chắc chắn muốn xóa mẫu "${item.name}"?`,
+                      confirmText: "Xóa",
+                      cancelText: "Hủy",
+                      onConfirm: () => onDelete(item.id),
+                    });
                   }}
                 >
                   <Trash2 className="w-4 h-4 text-red-500" />
@@ -63,6 +70,7 @@ export function TemplateTable({ items, onDelete }: TemplateTableProps) {
           ))}
         </tbody>
       </table>
+      <DeleteConfirmationDialog />
     </div>
   );
 }
