@@ -7,6 +7,45 @@ import { getCurrentUserSession } from "@/lib/auth-session";
 import { usersService } from "@/services/users";
 import { useCallback } from "react";
 
+type KpiRole = "admin" | "owner" | "leader" | "worker";
+
+const normalizeRoleText = (value?: string | null) =>
+    (value || "").trim().toLowerCase().replace(/[_-]+/g, " ");
+
+const getRoleFromPermissionTexts = (roles: Array<string | null | undefined>): KpiRole => {
+    const normalizedRoles = roles.map(normalizeRoleText);
+
+    if (normalizedRoles.some((role) =>
+        role === "admin" ||
+        role === "site admin" ||
+        role === "admin onsite" ||
+        role.includes("site admin") ||
+        role.includes("admin onsite")
+    )) {
+        return "admin";
+    }
+
+    if (normalizedRoles.some((role) => role === "owner" || role === "site owner" || role.includes("owner"))) {
+        return "owner";
+    }
+
+    if (normalizedRoles.some((role) => role === "leader" || role === "site leader" || role.includes("leader"))) {
+        return "leader";
+    }
+
+    return "worker";
+};
+
+const getCurrentUserKpiRole = (): KpiRole => {
+    const user = getCurrentUserSession();
+    const roles = user?.user_permisions?.flatMap((permission) => [
+        permission.permision?.name,
+        permission.permision?.code,
+    ]) || [];
+
+    return getRoleFromPermissionTexts(roles);
+};
+
 export function useKpiTab(onKpisLoaded?: (count: number) => void) {
     const [searchQuery, setSearchQuery] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
@@ -16,65 +55,59 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
     const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
     const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' } | null>(null);
 
-    const [isWorkerRole] = useState(() => {
-        if (typeof window === 'undefined') return false;
-        const user = getCurrentUserSession();
-        if (!user) return true;
-        const hasHigherRole = user.user_permisions?.some(p => {
-            const name = (p.permision.name || "").toLowerCase();
-            return name.includes("owner") || name.includes("leader") || name === "site admin" || name.includes("site admin") || name === "admin onsite" || name.includes("admin onsite");
-        });
-        return !hasHigherRole;
+    const [currentUserRole] = useState<KpiRole>(() => {
+        if (typeof window === 'undefined') return "worker";
+        return getCurrentUserKpiRole();
     });
+    const isWorkerRole = currentUserRole === "worker";
 
     const [viewMode, setViewMode] = useState<'team' | 'my'>(isWorkerRole ? 'my' : 'team');
 
-    const [userRolesByUser, setUserRolesByUser] = useState<Record<string, string[]>>({});
+    const [userRolesByUser, setUserRolesByUser] = useState<Record<string, KpiRole>>({});
     useEffect(() => {
         if (!isWorkerRole) {
             usersService.getAdminUsers({ pageSize: "1000" }).then(res => {
                 const rows = res.responseData?.rows || [];
-                const rolesMap: Record<string, string[]> = {};
+                const rolesMap: Record<string, KpiRole> = {};
                 for (const r of rows) {
-                    rolesMap[r.id] = (r.user_permisions || []).map(up => (up.permision.name || "").toLowerCase());
+                    rolesMap[r.id] = getRoleFromPermissionTexts(
+                        (r.user_permisions || []).flatMap(up => [
+                            up.permision?.name,
+                            (up.permision as { code?: string })?.code,
+                        ]),
+                    );
+                }
+                const currentUser = getCurrentUserSession();
+                if (currentUser?.id) {
+                    rolesMap[currentUser.id] = currentUserRole;
                 }
                 setUserRolesByUser(rolesMap);
             }).catch(console.error);
         }
-    }, [isWorkerRole]);
+    }, [currentUserRole, isWorkerRole]);
 
     const canEditKpiTarget = useCallback((targetUserId: string) => {
         if (isWorkerRole) return false;
         
         const currentUser = getCurrentUserSession();
         const myId = currentUser?.id || "";
-        const myRoles = currentUser?.user_permisions?.map(p => (p.permision.name || "").toLowerCase()) || [];
-        const isOwner = myRoles.some(r => r.includes("owner"));
-        const isLeader = myRoles.some(r => r.includes("leader"));
+        const targetRole = userRolesByUser[targetUserId] || "worker";
 
-        const targetRoles = userRolesByUser[targetUserId] || [];
-        const tIsOwner = targetRoles.some(r => r.includes("owner"));
-        const tIsLeader = targetRoles.some(r => r.includes("leader"));
-        const tIsWorker = !tIsOwner && !tIsLeader;
+        if (currentUserRole === "admin") return true;
 
-        const isAdminOnsite = myRoles.some(r => r === "site admin" || r.includes("site admin") || r === "admin onsite" || r.includes("admin onsite"));
-        if (isAdminOnsite) return true;
-
-        if (isOwner) {
+        if (currentUserRole === "owner") {
             if (targetUserId === myId) return true; // Can edit own
-            if (tIsOwner) return false; // Cannot edit other owner
+            if (targetRole === "admin" || targetRole === "owner") return false; // Cannot edit admin/other owner
             return true; // Can edit leader and worker
         }
         
-        if (isLeader) {
+        if (currentUserRole === "leader") {
             if (targetUserId === myId) return false; // Leader cannot edit own
-            if (tIsLeader) return false; // Cannot edit other leader
-            if (tIsOwner) return false; // Cannot edit owner
-            if (tIsWorker) return true; // Can edit worker
+            if (targetRole === "worker") return true; // Can edit worker returned by team API
         }
 
         return false;
-    }, [isWorkerRole, userRolesByUser]);
+    }, [currentUserRole, isWorkerRole, userRolesByUser]);
 
     const canViewKpi = useCallback((targetUserId: string) => {
         const currentUser = getCurrentUserSession();
@@ -83,26 +116,17 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
         if (isWorkerRole) return targetUserId === myId;
         if (targetUserId === myId) return true; // Everyone can see themselves
 
-        const myRoles = currentUser?.user_permisions?.map(p => (p.permision.name || "").toLowerCase()) || [];
-        const isOwner = myRoles.some(r => r.includes("owner"));
-        const isLeader = myRoles.some(r => r.includes("leader"));
-
         const hasRolesLoaded = Object.keys(userRolesByUser).length > 0;
         if (!hasRolesLoaded) return false; // Hide until roles are loaded to prevent flash
 
-        const targetRoles = userRolesByUser[targetUserId] || [];
-        const tIsOwner = targetRoles.some(r => r.includes("owner"));
-        const tIsLeader = targetRoles.some(r => r.includes("leader"));
-        const tIsWorker = !tIsOwner && !tIsLeader;
+        const targetRole = userRolesByUser[targetUserId] || "worker";
 
-        const isAdminOnsite = myRoles.some(r => r === "site admin" || r.includes("site admin") || r === "admin onsite" || r.includes("admin onsite"));
-        if (isAdminOnsite) return true;
-
-        if (isOwner) return true;
-        if (isLeader) return tIsWorker;
+        if (currentUserRole === "admin") return true;
+        if (currentUserRole === "owner") return targetRole === "leader" || targetRole === "worker";
+        if (currentUserRole === "leader") return targetRole === "worker";
 
         return false;
-    }, [isWorkerRole, userRolesByUser]);
+    }, [currentUserRole, isWorkerRole, userRolesByUser]);
 
     // Filter states (Applied)
     const [appliedYear, setAppliedYear] = useState(new Date().getFullYear());
@@ -226,6 +250,7 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
     const filteredKpis = useMemo(() => {
         let result = kpis.filter((kpi) => {
             if (viewMode === 'team' && !canViewKpi(kpi.user_id)) return false;
+            if (!kpi.target) return false;
 
             const matchesSearch = kpi.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 kpi.email.toLowerCase().includes(searchQuery.toLowerCase());
@@ -295,12 +320,6 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
 
         return result;
     }, [kpis, searchQuery, sortConfig, appliedStatusFilter, appliedPeriodType, appliedPeriodValue, appliedYear, isPeriodOver, canViewKpi, viewMode]);
-
-    useEffect(() => {
-        if (onKpisLoaded) {
-            onKpisLoaded(filteredKpis.length);
-        }
-    }, [filteredKpis.length]);
 
     const handleExport = async () => {
         if (filteredKpis.length === 0) return;
@@ -382,6 +401,12 @@ export function useKpiTab(onKpisLoaded?: (count: number) => void) {
         () => filteredKpis.slice((currentPage - 1) * pageSize, currentPage * pageSize),
         [currentPage, filteredKpis, pageSize]
     );
+
+    useEffect(() => {
+        if (onKpisLoaded) {
+            onKpisLoaded(pagedKpis.length);
+        }
+    }, [onKpisLoaded, pagedKpis.length]);
 
     const handleSort = (key: keyof TeamKpiMember | "average_rate" | string) => {
         if (sortConfig?.key === key) {
