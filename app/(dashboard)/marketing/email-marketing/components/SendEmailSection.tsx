@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Input } from "@/components/ui/Input";
 import { TextEditor } from "@/components/ui/TextEditor";
 import { Button } from "@/components/ui/Button";
@@ -21,10 +20,13 @@ interface SendEmailSectionProps {
   setSelectedGroup: (v: string) => void;
   selectedCustomers: string[];
   setSelectedCustomers: (v: string[]) => void;
+  recipientSearch: string;
+  setRecipientSearch: (v: string) => void;
   onSend: () => void;
   isSubmitting: boolean;
   isLoadingTemplate?: boolean;
   isLoadingData?: boolean;
+  isLoadingRecipients?: boolean;
   groups: any[];
   customers: any[];
 }
@@ -38,28 +40,17 @@ export function SendEmailSection({
   setContent,
   selectedCustomers,
   setSelectedCustomers,
+  recipientSearch,
+  setRecipientSearch,
   onSend,
   isSubmitting,
   isLoadingTemplate,
   isLoadingData,
+  isLoadingRecipients,
   customers,
 }: SendEmailSectionProps) {
   const router = useRouter();
-  const [recipientSearch, setRecipientSearch] = useState("");
-
   const customersWithEmail = customers.filter((customer) => customer.email);
-  const normalizedRecipientSearch = recipientSearch.trim().toLowerCase();
-  const filteredCustomers = normalizedRecipientSearch
-    ? customersWithEmail.filter((customer) => {
-        const fullName =
-          customer.full_name ||
-          `${customer.first_name || ""} ${customer.last_name || ""}`.trim();
-
-        return `${fullName} ${customer.email}`
-          .toLowerCase()
-          .includes(normalizedRecipientSearch);
-      })
-    : customersWithEmail;
 
   if (isLoadingTemplate || isLoadingData) {
     return (
@@ -117,21 +108,23 @@ export function SendEmailSection({
                 type="search"
                 value={recipientSearch}
                 onChange={(e) => setRecipientSearch(e.target.value)}
-                placeholder="Tìm theo tên hoặc email..."
+                placeholder="Tìm theo tên"
                 className="h-10 w-full rounded-lg border border-gray-300 bg-white pl-9 pr-3 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
               />
             </div>
             <div className="border border-gray-200 rounded-lg max-h-60 overflow-y-auto p-2 space-y-1 bg-white">
-              {customersWithEmail.length === 0 ? (
+              {isLoadingRecipients ? (
                 <p className="text-sm text-gray-500 p-2 text-center">
-                  Không có khách hàng nào có địa chỉ email
+                  Đang tìm kiếm khách hàng...
                 </p>
-              ) : filteredCustomers.length === 0 ? (
+              ) : customersWithEmail.length === 0 ? (
                 <p className="text-sm text-gray-500 p-2 text-center">
-                  Không tìm thấy khách hàng phù hợp
+                  {recipientSearch.trim()
+                    ? "Không tìm thấy khách hàng phù hợp"
+                    : "Không có khách hàng nào có địa chỉ email"}
                 </p>
               ) : (
-                filteredCustomers.map((customer) => {
+                customersWithEmail.map((customer) => {
                   const fullName =
                     customer.full_name ||
                     `${customer.first_name || ""} ${customer.last_name || ""}`.trim() ||

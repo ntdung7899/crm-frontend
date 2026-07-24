@@ -19,6 +19,30 @@ function getFriendlySendError(message?: string) {
   return message;
 }
 
+function buildCustomerSearchFilters(search: string) {
+  const value = search.trim();
+  if (!value) return [];
+
+  const tokens = value.split(/\s+/).filter(Boolean);
+  const filters = new Set<string>();
+
+  filters.add(`first_name==${value}`);
+  filters.add(`last_name==${value}`);
+  filters.add(`full_name==${value}`);
+  filters.add(`email==${value}`);
+
+  tokens.forEach((token) => {
+    filters.add(`first_name==${token}`);
+    filters.add(`last_name==${token}`);
+  });
+
+  return Array.from(filters);
+}
+
+function uniqueCustomersById(rows: any[]) {
+  return Array.from(new Map(rows.map((row) => [row.id, row])).values());
+}
+
 export function useSendEmail(initialTemplateId?: string) {
   const [templateId, setTemplateId] = useState<string | undefined>(initialTemplateId);
   const [campaignName, setCampaignName] = useState("");
@@ -63,7 +87,7 @@ export function useSendEmail(initialTemplateId?: string) {
     }
   }, [templateId, router, toast]);
 
-  // Load tags once and fetch the initial recipient list from the backend.
+  // Load tags and customers from the backend
   useEffect(() => {
     const loadData = async () => {
       setIsLoadingData(true);
@@ -90,13 +114,27 @@ export function useSendEmail(initialTemplateId?: string) {
     const timeoutId = window.setTimeout(async () => {
       setIsLoadingRecipients(true);
       try {
-        const keyword = recipientSearch.trim();
-        const customersRes = await customersService.getCustomers({
-          currentPage: "1",
-          pageSize: "50",
-          ...(keyword ? { keyword } : {}),
-        });
-        setCustomers(customersRes.responseData?.rows || []);
+        const filters = buildCustomerSearchFilters(recipientSearch);
+        if (filters.length === 0) {
+          const customersRes = await customersService.getCustomers({
+            currentPage: "1",
+            pageSize: "50",
+          });
+          setCustomers(customersRes.responseData?.rows || []);
+          return;
+        }
+
+        const responses = await Promise.all(
+          filters.map((filter) =>
+            customersService.getCustomers({
+              currentPage: "1",
+              pageSize: "50",
+              filters: filter,
+            }),
+          ),
+        );
+        const rows = responses.flatMap((res) => res.responseData?.rows || []);
+        setCustomers(uniqueCustomersById(rows));
       } catch (err) {
         console.error("Failed to search customers:", err);
         toast.error("KhÃ´ng thá»ƒ tÃ¬m kiáº¿m khÃ¡ch hÃ ng");
