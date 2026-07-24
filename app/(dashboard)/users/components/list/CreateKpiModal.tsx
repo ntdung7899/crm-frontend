@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -16,9 +16,17 @@ interface CreateKpiModalProps {
     teamMembers?: TeamKpiMember[];
 }
 
-export function CreateKpiModal({ 
-    isOpen, 
-    onClose, 
+function RequiredLabel({ children }: { children: ReactNode }) {
+    return (
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+            {children} <span className="text-red-500">*</span>
+        </label>
+    );
+}
+
+export function CreateKpiModal({
+    isOpen,
+    onClose,
     onSuccess,
     initialPeriodType = "month",
     initialPeriodValue = new Date().getMonth() + 1,
@@ -101,9 +109,9 @@ export function CreateKpiModal({
             <form id="create-kpi-form" onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
                     <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Nhân sự thực hiện *</label>
-                        <select 
-                            required 
+                        <RequiredLabel>Nhân sự thực hiện</RequiredLabel>
+                        <select
+                            required
                             value={userId}
                             onChange={(e) => setUserId(e.target.value)}
                             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -116,9 +124,9 @@ export function CreateKpiModal({
                     </div>
 
                     <div className="col-span-2 md:col-span-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Chu kỳ *</label>
-                        <select 
-                            required 
+                        <RequiredLabel>Chu kỳ</RequiredLabel>
+                        <select
+                            required
                             value={periodType}
                             onChange={(e) => setPeriodType(e.target.value as "month" | "quarter")}
                             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -129,25 +137,25 @@ export function CreateKpiModal({
                     </div>
 
                     <div className="col-span-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Tháng / Quý *</label>
-                        <Input 
-                            type="number" 
-                            min="1" 
-                            max="12" 
-                            required 
-                            placeholder="Tháng hoặc Quý (VD: 7)" 
+                        <RequiredLabel>Tháng / Quý</RequiredLabel>
+                        <Input
+                            type="number"
+                            min="1"
+                            max="12"
+                            required
+                            placeholder="Tháng hoặc Quý (VD: 7)"
                             value={periodValue}
                             onChange={(e) => setPeriodValue(Number(e.target.value))}
                         />
                     </div>
 
                     <div className="col-span-1">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Năm *</label>
-                        <Input 
-                            type="number" 
-                            min="2020" 
-                            max="2100" 
-                            required 
+                        <RequiredLabel>Năm</RequiredLabel>
+                        <Input
+                            type="number"
+                            min="2020"
+                            max="2100"
+                            required
                             value={year}
                             onChange={(e) => setYear(Number(e.target.value))}
                         />
@@ -159,9 +167,9 @@ export function CreateKpiModal({
 
                     <div className="col-span-2 md:col-span-1">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Mục tiêu Doanh thu (VNĐ)</label>
-                        <Input 
-                            type="number" 
-                            min="0" 
+                        <Input
+                            type="number"
+                            min="0"
                             placeholder="VD: 50000000"
                             value={targetRevenue || ""}
                             onChange={(e) => setTargetRevenue(Number(e.target.value))}
@@ -170,9 +178,9 @@ export function CreateKpiModal({
 
                     <div className="col-span-2 md:col-span-1">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Mục tiêu Khách hàng mới</label>
-                        <Input 
-                            type="number" 
-                            min="0" 
+                        <Input
+                            type="number"
+                            min="0"
                             placeholder="Số lượng khách hàng"
                             value={targetNewCustomers || ""}
                             onChange={(e) => setTargetNewCustomers(Number(e.target.value))}
@@ -181,9 +189,9 @@ export function CreateKpiModal({
 
                     <div className="col-span-2 md:col-span-1">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Mục tiêu Công việc hoàn thành</label>
-                        <Input 
-                            type="number" 
-                            min="0" 
+                        <Input
+                            type="number"
+                            min="0"
                             placeholder="Số lượng công việc"
                             value={targetJobsCompleted || ""}
                             onChange={(e) => setTargetJobsCompleted(Number(e.target.value))}
@@ -192,9 +200,9 @@ export function CreateKpiModal({
 
                     <div className="col-span-2 pt-2">
                         <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
-                        <textarea 
-                            className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
-                            rows={3} 
+                        <textarea
+                            className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                            rows={3}
                             placeholder="Ghi chú thêm về mục tiêu đợt này..."
                             value={note}
                             onChange={(e) => setNote(e.target.value)}
