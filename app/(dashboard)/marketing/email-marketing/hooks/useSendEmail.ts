@@ -29,12 +29,14 @@ export function useSendEmail(initialTemplateId?: string) {
   // Real data for audience selection
   const [groups, setGroups] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [recipientSearch, setRecipientSearch] = useState("");
   const [selectedGroup, setSelectedGroup] = useState("");
   const [selectedCustomers, setSelectedCustomers] = useState<string[]>([]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
+  const [isLoadingRecipients, setIsLoadingRecipients] = useState(false);
   
   const router = useRouter();
   const toast = useToast();
@@ -61,14 +63,14 @@ export function useSendEmail(initialTemplateId?: string) {
     }
   }, [templateId, router, toast]);
 
-  // Load tags and customers from the backend
+  // Load tags once and fetch the initial recipient list from the backend.
   useEffect(() => {
     const loadData = async () => {
       setIsLoadingData(true);
       try {
         const [tagsRes, customersRes] = await Promise.all([
           tagsService.getTags({ currentPage: "1", pageSize: "1000" }),
-          customersService.getCustomers({ currentPage: "1", pageSize: "1000" }),
+          customersService.getCustomers({ currentPage: "1", pageSize: "50" }),
         ]);
         setGroups(tagsRes.responseData?.rows || []);
         setCustomers(customersRes.responseData?.rows || []);
@@ -81,6 +83,30 @@ export function useSendEmail(initialTemplateId?: string) {
     };
     loadData();
   }, [toast]);
+
+  useEffect(() => {
+    if (isLoadingData) return;
+
+    const timeoutId = window.setTimeout(async () => {
+      setIsLoadingRecipients(true);
+      try {
+        const keyword = recipientSearch.trim();
+        const customersRes = await customersService.getCustomers({
+          currentPage: "1",
+          pageSize: "50",
+          ...(keyword ? { keyword } : {}),
+        });
+        setCustomers(customersRes.responseData?.rows || []);
+      } catch (err) {
+        console.error("Failed to search customers:", err);
+        toast.error("KhÃ´ng thá»ƒ tÃ¬m kiáº¿m khÃ¡ch hÃ ng");
+      } finally {
+        setIsLoadingRecipients(false);
+      }
+    }, 350);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [isLoadingData, recipientSearch, toast]);
 
   const handleSend = async () => {
     if (!templateId) {
@@ -141,9 +167,12 @@ export function useSendEmail(initialTemplateId?: string) {
     setSelectedGroup,
     selectedCustomers,
     setSelectedCustomers,
+    recipientSearch,
+    setRecipientSearch,
     isSubmitting,
     isLoadingTemplate,
     isLoadingData,
+    isLoadingRecipients,
     groups,
     customers,
     handleSend,

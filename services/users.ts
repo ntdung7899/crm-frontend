@@ -66,7 +66,7 @@ export const usersService = {
     },
 
     async getCustomerCount(payload?: CustomerCountPayload): Promise<CustomerCountResponse> {
-        return apiClient.post<CustomerCountResponse>(USERS_CUSTOMER_COUNT_ENDPOINT, payload);
+        return apiClient.get<CustomerCountResponse>(USERS_CUSTOMER_COUNT_ENDPOINT, payload);
     },
 
     async getCustomerTagStatistic(payload?: CustomerCountPayload): Promise<CustomerTagStatResponse> {
