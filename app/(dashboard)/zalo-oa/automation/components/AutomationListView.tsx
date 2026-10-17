@@ -33,9 +33,15 @@ export function AutomationListView({ hook }: Props) {
     filteredFlows, search, setSearch,
     trangThaiFilter, setTrangThaiFilter,
     isLoading, error,
+    oaOptions, oaFilter, setOaFilter,
     setShowTemplatePicker,
     onDelete, onToggleStatus, onEdit,
   } = hook;
+
+  const oaNameById = (oaId?: string | null) => {
+    if (!oaId) return "Tất cả OA";
+    return oaOptions.find((oa) => oa.oa_id === oaId)?.oa_name ?? oaId;
+  };
 
   return (
     <div>
@@ -73,15 +79,29 @@ export function AutomationListView({ hook }: Props) {
           ))}
         </div>
 
-        {/* Search */}
-        <div className="relative w-64">
-          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm kiếm automation..."
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-          />
+        <div className="flex items-center gap-2">
+          {/* OA filter */}
+          <select
+            value={oaFilter}
+            onChange={(e) => setOaFilter(e.target.value)}
+            className="py-2 pl-3 pr-8 text-sm border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="all">Tất cả OA</option>
+            {oaOptions.map((oa) => (
+              <option key={oa.oa_id} value={oa.oa_id}>{oa.oa_name}</option>
+            ))}
+          </select>
+
+          {/* Search */}
+          <div className="relative w-64">
+            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Tìm kiếm automation..."
+              className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+            />
+          </div>
         </div>
       </div>
 
@@ -98,6 +118,7 @@ export function AutomationListView({ hook }: Props) {
             <tr>
               <th className="text-left px-4 py-3 font-medium text-gray-700">Tên automation</th>
               <th className="text-left px-4 py-3 font-medium text-gray-700">Trigger</th>
+              <th className="text-left px-4 py-3 font-medium text-gray-700">OA</th>
               <th className="text-right px-4 py-3 font-medium text-gray-700">Lượt chạy</th>
               <th className="text-right px-4 py-3 font-medium text-gray-700">Tỉ lệ thành công</th>
               <th className="text-left px-4 py-3 font-medium text-gray-700">Trạng thái</th>
@@ -108,7 +129,7 @@ export function AutomationListView({ hook }: Props) {
           <tbody>
             {(isLoading || filteredFlows.length === 0) && (
               <tr>
-                <td colSpan={7} className="text-center py-12 text-gray-400">
+                <td colSpan={8}className="text-center py-12 text-gray-400">
                   <div className="flex flex-col items-center gap-2">
                     <svg className="w-10 h-10 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -127,6 +148,11 @@ export function AutomationListView({ hook }: Props) {
                     <div className="text-xs text-gray-400">Tạo bởi {flow.nguoiTao}</div>
                   </td>
                   <td className="px-4 py-3 text-gray-600">{flow.trigger}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${flow.oaId ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-600"}`}>
+                      {oaNameById(flow.oaId)}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-right font-medium">{flow.soLuotChay.toLocaleString("vi-VN")}</td>
                   <td className="px-4 py-3 text-right">
                     <span className={`font-medium ${flow.tiLeThanhCong >= 70 ? "text-green-600" : flow.tiLeThanhCong >= 40 ? "text-yellow-600" : "text-red-600"}`}>

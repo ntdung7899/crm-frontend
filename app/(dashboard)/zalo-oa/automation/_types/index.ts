@@ -21,6 +21,8 @@ export interface AutomationFlow {
   name: string;
   trangThai: "active" | "inactive" | "draft";
   trigger: string;
+  /** null/undefined = áp dụng cho mọi OA */
+  oaId?: string | null;
   soLuotChay: number;
   tiLeThanhCong: number;
   nguoiTao: string;

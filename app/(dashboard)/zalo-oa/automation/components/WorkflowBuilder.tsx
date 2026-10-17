@@ -19,7 +19,10 @@ const NODE_TYPES: { type: NodeType; label: string; icon: React.ReactNode; desc: 
 ];
 
 export function WorkflowBuilder({ hook }: Props) {
-  const { onBack, saveFlow, builderName, setBuilderName, addNode, editingFlow, error } = hook;
+  const { onBack, saveFlow, builderName, setBuilderName, builderOaId, setBuilderOaId, oaOptions, addNode, editingFlow, error } = hook;
+
+  // OA đã gắn nhưng không còn trong danh sách kết nối → vẫn hiện để không bị âm thầm gỡ khi lưu
+  const hasUnknownOa = !!builderOaId && !oaOptions.some((oa) => oa.oa_id === builderOaId);
 
   return (
     <div className="flex flex-col" style={{ height: "calc(100vh - 160px)" }}>
@@ -49,6 +52,18 @@ export function WorkflowBuilder({ hook }: Props) {
               {editingFlow.trangThai === "active" ? "Đang hoạt động" : editingFlow.trangThai === "inactive" ? "Tạm dừng" : "Nháp"}
             </span>
           )}
+          <select
+            value={builderOaId ?? ""}
+            onChange={(e) => setBuilderOaId(e.target.value || null)}
+            title="OA áp dụng cho automation này"
+            className="py-1 pl-2 pr-7 text-xs border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            <option value="">Tất cả OA</option>
+            {hasUnknownOa && <option value={builderOaId!}>{builderOaId}</option>}
+            {oaOptions.map((oa) => (
+              <option key={oa.oa_id} value={oa.oa_id}>{oa.oa_name}</option>
+            ))}
+          </select>
         </div>
         <button
           onClick={saveFlow}
