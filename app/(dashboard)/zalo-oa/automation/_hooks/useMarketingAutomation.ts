@@ -2,13 +2,14 @@
 
 import { useState, useCallback, useEffect } from "react";
 import type { AutomationFlow, AutomationTemplate, AutomationNode, AutomationEdge, NodeType } from "../_types";
-import type { AutomationDetail, AutomationHeader, AutomationSaveBody, AutomationStatus, ConditionResult } from "../_types/api";
+import type { AutomationDetail, AutomationHeader, AutomationSaveBody, AutomationStatus, ConditionResult, ZaloOaOption } from "../_types/api";
 import {
   changeAutomationStatus,
   createAutomation,
   deleteAutomation,
   getAutomationDetail,
   getAutomations,
+  getZaloOaOptions,
   updateAutomation,
 } from "./automationApi";
 
@@ -231,6 +232,7 @@ function toUiFlow(header: AutomationHeader, detail?: AutomationDetail): Automati
     name: header.name,
     trangThai: statusToUi(header.status),
     trigger: header.trigger_name,
+    oaId: header.oa_id ?? null,
     soLuotChay: header.run_count,
     tiLeThanhCong: Math.round(header.success_rate),
     nguoiTao: header.created_by_name,
@@ -259,7 +261,7 @@ function toUiFlow(header: AutomationHeader, detail?: AutomationDetail): Automati
   };
 }
 
-function toApiBody(name: string, nodes: AutomationNode[], edges: AutomationEdge[]): AutomationSaveBody {
+function toApiBody(name: string, nodes: AutomationNode[], edges: AutomationEdge[], oaId: string | null): AutomationSaveBody {
   const triggerNode = nodes.find((node) => node.type === "trigger");
 
   const triggerName = triggerNode?.label || "Chưa cấu hình";
@@ -267,9 +269,12 @@ function toApiBody(name: string, nodes: AutomationNode[], edges: AutomationEdge[
   return {
     name,
     trigger_name: triggerName,
+    // null được gửi tường minh để "Tất cả OA" gỡ liên kết OA cũ khi update
+    oa_id: oaId,
     automation: {
       name,
       trigger_name: triggerName,
+      oa_id: oaId,
     },
     nodes: nodes.map((node, index) => {
       const config = { ...node.config };
@@ -315,12 +320,16 @@ export function useMarketingAutomation() {
   const [editingFlow, setEditingFlow] = useState<AutomationFlow | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [oaOptions, setOaOptions] = useState<ZaloOaOption[]>([]);
+  // "all" = không lọc theo OA
+  const [oaFilter, setOaFilter] = useState<string>("all");
 
   // Builder state
   const [builderNodes, setBuilderNodes] = useState<AutomationNode[]>([]);
   const [builderEdges, setBuilderEdges] = useState<AutomationEdge[]>([]);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [builderName, setBuilderName] = useState("");
+  const [builderOaId, setBuilderOaId] = useState<string | null>(null);
   const [connectingFrom, setConnectingFrom] = useState<string | null>(null);
 
   const templates = SEED_TEMPLATES;
@@ -331,18 +340,31 @@ export function useMarketingAutomation() {
 
     try {
       const status = trangThaiFilter === "inactive" ? "paused" : trangThaiFilter;
-      const data = await getAutomations({ status, search: search || undefined, page: 1, limit: 200 });
+      const data = await getAutomations({
+        status,
+        search: search || undefined,
+        oa_id: oaFilter === "all" ? undefined : oaFilter,
+        page: 1,
+        limit: 200,
+      });
       setFlows(data.rows.map((row) => toUiFlow(row)));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không tải được danh sách automation");
     } finally {
       setIsLoading(false);
     }
-  }, [search, trangThaiFilter]);
+  }, [search, trangThaiFilter, oaFilter]);
 
   useEffect(() => {
     void loadFlows();
   }, [loadFlows]);
+
+  useEffect(() => {
+    getZaloOaOptions()
+      .then(setOaOptions)
+      // Không chặn màn hình: thiếu danh sách OA thì chỉ mất dropdown, automation vẫn dùng được
+      .catch((err) => console.error("[Automation] Không tải được danh sách OA:", err));
+  }, []);
 
   // List handlers
   const onDelete = useCallback(async (id: string) => {
@@ -374,6 +396,7 @@ export function useMarketingAutomation() {
       setBuilderNodes(fullFlow.nodes.map((n) => ({ ...n })));
       setBuilderEdges(fullFlow.edges.map((e) => ({ ...e })));
       setBuilderName(fullFlow.name);
+      setBuilderOaId(fullFlow.oaId ?? null);
       setSelectedNodeId(null);
       setConnectingFrom(null);
     } catch (err) {
@@ -406,9 +429,11 @@ export function useMarketingAutomation() {
     setBuilderNodes(newFlow.nodes.map((n) => ({ ...n })));
     setBuilderEdges(newFlow.edges.map((e) => ({ ...e })));
     setBuilderName(newFlow.name);
+    // Đang lọc theo 1 OA thì automation mới mặc định thuộc OA đó
+    setBuilderOaId(oaFilter === "all" ? null : oaFilter);
     setSelectedNodeId(null);
     setConnectingFrom(null);
-  }, []);
+  }, [oaFilter]);
 
   const onBack = useCallback(() => {
     setEditingFlow(null);
@@ -419,7 +444,7 @@ export function useMarketingAutomation() {
   const saveFlow = useCallback(async () => {
     if (!editingFlow) return;
 
-    const body = toApiBody(builderName, builderNodes, builderEdges);
+    const body = toApiBody(builderName, builderNodes, builderEdges, builderOaId);
 
     try {
       const isExisting = flows.some((flow) => flow.id === editingFlow.id);
@@ -435,7 +460,7 @@ export function useMarketingAutomation() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Không lưu được automation");
     }
-  }, [editingFlow, builderName, builderNodes, builderEdges, flows, loadFlows]);
+  }, [editingFlow, builderName, builderOaId, builderNodes, builderEdges, flows, loadFlows]);
 
   // Builder node/edge handlers
   const addNode = useCallback((type: NodeType) => {
@@ -493,12 +518,14 @@ export function useMarketingAutomation() {
     flows, filteredFlows, search, setSearch,
     trangThaiFilter, setTrangThaiFilter,
     isLoading, error,
+    oaOptions, oaFilter, setOaFilter,
     showTemplatePicker, setShowTemplatePicker,
     templates,
     onDelete, onToggleStatus, onEdit, onCreate,
     // builder
     editingFlow,
     builderName, setBuilderName,
+    builderOaId, setBuilderOaId,
     builderNodes, builderEdges,
     selectedNodeId, setSelectedNodeId,
     connectingFrom, setConnectingFrom,
