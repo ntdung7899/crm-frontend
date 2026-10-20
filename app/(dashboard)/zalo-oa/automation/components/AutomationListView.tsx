@@ -38,9 +38,15 @@ export function AutomationListView({ hook }: Props) {
     onDelete, onToggleStatus, onEdit,
   } = hook;
 
-  const oaNameById = (oaId?: string | null) => {
+  // Ưu tiên oa_name do BE trả trong list; dự phòng tra danh sách OA, cuối cùng hiện oa_id
+  // Dùng || (không phải ??) để oa_name rỗng cũng rơi xuống bước dự phòng
+  const oaLabel = (oaId?: string | null, oaName?: string | null) => {
     if (!oaId) return "Tất cả OA";
-    return oaOptions.find((oa) => oa.oa_id === oaId)?.oa_name ?? oaId;
+    return (
+      oaName?.trim() ||
+      oaOptions.find((oa) => oa.oa_id === oaId)?.oa_name?.trim() ||
+      oaId
+    );
   };
 
   return (
@@ -150,7 +156,7 @@ export function AutomationListView({ hook }: Props) {
                   <td className="px-4 py-3 text-gray-600">{flow.trigger}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${flow.oaId ? "bg-blue-50 text-blue-700" : "bg-gray-100 text-gray-600"}`}>
-                      {oaNameById(flow.oaId)}
+                      {oaLabel(flow.oaId, flow.oaName)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right font-medium">{flow.soLuotChay.toLocaleString("vi-VN")}</td>
