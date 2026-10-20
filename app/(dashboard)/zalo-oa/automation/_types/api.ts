@@ -27,6 +27,8 @@ export interface AutomationHeader {
   trigger_name: string;
   /** OA mà automation áp dụng; null = áp dụng cho mọi OA */
   oa_id?: string | null;
+  /** Tên OA do BE trả trong API danh sách; null khi áp dụng mọi OA hoặc OA đã bị xóa */
+  oa_name?: string | null;
   status: AutomationStatus;
   run_count: number;
   success_count: number;

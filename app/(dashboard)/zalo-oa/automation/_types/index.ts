@@ -23,6 +23,8 @@ export interface AutomationFlow {
   trigger: string;
   /** null/undefined = áp dụng cho mọi OA */
   oaId?: string | null;
+  /** Tên OA từ BE (chỉ có ở danh sách) */
+  oaName?: string | null;
   soLuotChay: number;
   tiLeThanhCong: number;
   nguoiTao: string;

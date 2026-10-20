@@ -233,6 +233,7 @@ function toUiFlow(header: AutomationHeader, detail?: AutomationDetail): Automati
     trangThai: statusToUi(header.status),
     trigger: header.trigger_name,
     oaId: header.oa_id ?? null,
+    oaName: header.oa_name ?? null,
     soLuotChay: header.run_count,
     tiLeThanhCong: Math.round(header.success_rate),
     nguoiTao: header.created_by_name,
