@@ -25,6 +25,10 @@ export interface AutomationHeader {
   name: string;
   description: string | null;
   trigger_name: string;
+  /** OA mà automation áp dụng; null = áp dụng cho mọi OA */
+  oa_id?: string | null;
+  /** Tên OA do BE trả trong API danh sách; null khi áp dụng mọi OA hoặc OA đã bị xóa */
+  oa_name?: string | null;
   status: AutomationStatus;
   run_count: number;
   success_count: number;
@@ -91,10 +95,13 @@ export interface AutomationSaveBody {
   name: string;
   description?: string | null;
   trigger_name: string;
+  /** Create đọc ở top-level, update đọc trong `automation` → gửi cả hai. null = mọi OA */
+  oa_id?: string | null;
   automation: {
     name: string;
     description?: string | null;
     trigger_name: string;
+    oa_id?: string | null;
   };
   nodes: AutomationNodeInput[];
   edges: AutomationEdgeInput[];
@@ -108,8 +115,14 @@ export interface CreateAutomationResponse {
 export interface AutomationListParams {
   status?: "all" | AutomationStatus;
   search?: string;
+  oa_id?: string;
   page?: number;
   limit?: number;
+}
+
+export interface ZaloOaOption {
+  oa_id: string;
+  oa_name: string;
 }
 
 export interface TestRunLog {
