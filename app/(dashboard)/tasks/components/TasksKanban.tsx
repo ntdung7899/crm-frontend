@@ -174,7 +174,7 @@ export function TasksKanban({
                                         draggable
                                         onDragStart={(e) => handleDragStart(e, job.id)}
                                         onClick={() => onOpenDetail(job)}
-                                        className="bg-white pl-5 pr-4 py-4 rounded-xl border border-slate-150 shadow-sm hover:shadow-md hover:border-primary/20 hover:-translate-y-0.5 transition-all duration-300 cursor-grab active:cursor-grabbing flex flex-col relative group overflow-hidden"
+                                        className="shrink-0 bg-white pl-5 pr-4 py-4 rounded-xl border border-slate-150 shadow-sm hover:shadow-md hover:border-primary/20 hover:-translate-y-0.5 transition-all duration-300 cursor-grab active:cursor-grabbing flex flex-col relative group overflow-hidden"
                                     >
                                         {/* Status Accent Bar on the Left */}
                                         <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${dotColor}`} />
